@@ -1,0 +1,2468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MMM – My Money Manager (Firebase)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+  <!-- Firebase SDKs (compat v9) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-auth-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --bg-card: #ffffff;
+      --bg-muted: #eef1f6;
+      --fg: #111827;
+      --fg-2: #4b5563;
+      --fg-3: #9ca3af;
+      --border: #e5e7eb;
+      --accent: #059669;
+      --accent-bg: #d1fae5;
+      --warn: #d97706;
+      --warn-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --blue: #2563eb;
+      --blue-bg: #dbeafe;
+      --purple: #7c3aed;
+      --shadow: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+      --r: 14px; --r-sm: 8px;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg:#0d1117; --bg-card:#161b22; --bg-muted:#21262d;
+        --fg:#e6edf3; --fg-2:#8b949e; --fg-3:#484f58; --border:#30363d;
+        --accent:#3fb950; --accent-bg:#0d2818;
+        --warn:#f0883e; --warn-bg:#2d1a00;
+        --danger:#f85149; --danger-bg:#2d0a0a;
+        --blue:#58a6ff; --blue-bg:#0d1f3c;
+        --shadow:0 1px 3px rgba(0,0,0,.4);
+        color-scheme: dark;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg:#0d1117; --bg-card:#161b22; --bg-muted:#21262d;
+      --fg:#e6edf3; --fg-2:#8b949e; --fg-3:#484f58; --border:#30363d;
+      --accent:#3fb950; --accent-bg:#0d2818;
+      --warn:#f0883e; --warn-bg:#2d1a00;
+      --danger:#f85149; --danger-bg:#2d0a0a;
+      --blue:#58a6ff; --blue-bg:#0d1f3c;
+      --shadow:0 1px 3px rgba(0,0,0,.4);
+      color-scheme: dark;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    [hidden] { display: none !important }
+    body { font-family:'Outfit',system-ui,sans-serif; background:var(--bg); color:var(--fg); font-size:15px; line-height:1.5 }
+
+    /* ── Header ── */
+    .app-header { position:sticky; top:0; z-index:50; background:var(--bg-card); border-bottom:1px solid var(--border); box-shadow:var(--shadow) }
+    .header-inner { display:flex; align-items:center; justify-content:space-between; height:56px; padding:0 20px; max-width:740px; margin:0 auto }
+    .logo { font-size:20px; font-weight:700; letter-spacing:-.5px }
+    .logo em { color:var(--accent); font-style:normal }
+    .logo span { font-size:11px; font-weight:400; color:var(--fg-3); margin-left:7px; vertical-align:middle }
+    .theme-btn { width:32px; height:32px; border-radius:50%; border:1px solid var(--border); background:var(--bg-muted); cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center }
+    .clear-btn { font-size:12px; font-weight:500; color:var(--danger); background:transparent; border:1px solid var(--border); border-radius:var(--r-sm); padding:5px 10px; cursor:pointer; transition:all .15s }
+    .clear-btn:hover { background:var(--danger-bg); border-color:var(--danger) }
+    /* Confirm strip */
+    .confirm-strip { display:flex; align-items:center; gap:8px; background:var(--danger-bg); border:1px solid var(--danger); border-radius:var(--r-sm); padding:8px 12px; margin-bottom:14px; font-size:13px; color:var(--danger) }
+
+    /* ── Main ── */
+    .main { padding:18px 20px; max-width:740px; margin:0 auto }
+
+    /* ── Tabs ── */
+    .tabs { display:flex; gap:4px; background:var(--bg-muted); border-radius:var(--r); padding:4px; margin-bottom:18px }
+    .tab-btn { flex:1; padding:8px 10px; border:none; border-radius:calc(var(--r) - 4px); background:transparent; color:var(--fg-2); font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:5px }
+    .tab-btn.active { background:var(--bg-card); color:var(--fg); box-shadow:var(--shadow) }
+
+    /* ── Shared controls ── */
+    .month-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px }
+    .month-nav-group { display:flex; align-items:center; gap:4px }
+    .month-nav { width:32px; height:32px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg-card); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--fg-2); font-size:17px; box-shadow:var(--shadow); transition:all .1s }
+    .month-nav:hover { border-color:var(--accent); color:var(--accent) }
+    .month-label { font-size:16px; font-weight:600; letter-spacing:-.3px; min-width:160px; text-align:center }
+
+    .btn { display:inline-flex; align-items:center; gap:5px; padding:8px 14px; border-radius:var(--r-sm); border:none; cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; transition:all .15s; line-height:1; white-space:nowrap }
+    .btn-primary { background:var(--accent); color:#fff }
+    .btn-primary:hover { filter:brightness(1.08) }
+    .btn-outline { background:var(--bg-card); color:var(--fg-2); border:1px solid var(--border); box-shadow:var(--shadow) }
+    .btn-outline:hover { border-color:var(--fg-2); color:var(--fg) }
+    .btn-ghost { background:transparent; color:var(--fg-3); padding:5px 7px }
+    .btn-ghost:hover { color:var(--fg-2); background:var(--bg-muted) }
+    .btn-danger { background:transparent; color:var(--danger); padding:5px 7px; border:1px solid transparent }
+    .btn-danger:hover { background:var(--danger-bg) }
+    .btn-sm { padding:6px 11px; font-size:12px }
+
+    /* ── Monthly expense styles ── */
+    .create-banner { background:var(--blue-bg); border:1px solid var(--blue); border-radius:var(--r); padding:22px; text-align:center; margin-bottom:16px }
+    .create-banner p { color:var(--blue); margin-bottom:12px }
+    .summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:8px }
+    .sum-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:13px 15px; box-shadow:var(--shadow) }
+    .sum-label { font-size:11px; font-weight:500; color:var(--fg-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px }
+    .sum-amount { font-size:19px; font-weight:700; letter-spacing:-.5px; font-variant-numeric:tabular-nums }
+    .sum-card.c-total .sum-amount { color:var(--fg) }
+    .sum-card.c-paid  .sum-amount { color:var(--accent) }
+    .sum-card.c-pend  .sum-amount { color:var(--warn) }
+    .progress-bar-wrap { background:var(--bg-muted); border-radius:3px; height:4px; margin-top:8px; overflow:hidden }
+    .progress-bar-fill { height:100%; background:var(--accent); border-radius:3px; transition:width .5s ease }
+    .progress-text { font-size:12px; color:var(--fg-3); text-align:right; margin-bottom:16px; margin-top:4px }
+    .sec-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px }
+    .sec-title { font-size:11px; font-weight:600; color:var(--fg-3); text-transform:uppercase; letter-spacing:.06em }
+    .sec-count { font-size:11px; color:var(--fg-3); background:var(--bg-muted); border-radius:20px; padding:2px 7px }
+    .expense-list { display:flex; flex-direction:column; gap:7px; margin-bottom:20px }
+    .expense-item { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:11px 13px; display:flex; align-items:center; gap:11px; box-shadow:var(--shadow); transition:opacity .2s }
+    .expense-item.done { opacity:.55 }
+    .check-btn { width:22px; height:22px; border-radius:50%; border:2px solid var(--border); background:transparent; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .2s; color:transparent; font-size:12px }
+    .expense-item.done .check-btn { background:var(--accent); border-color:var(--accent); color:#fff }
+    .exp-info { flex:1; min-width:0 }
+    .exp-name { font-weight:500; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+    .expense-item.done .exp-name { text-decoration:line-through }
+    .exp-meta { display:flex; gap:6px; align-items:center; margin-top:2px; flex-wrap:wrap }
+    .cat-tag { font-size:11px; font-weight:500; padding:2px 7px; border-radius:20px; background:var(--bg-muted); color:var(--fg-2) }
+    .due-tag { font-size:11px; color:var(--fg-3) }
+    .exp-amount { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.3px; flex-shrink:0 }
+    .exp-actions { display:flex; flex-shrink:0 }
+    .empty-block { text-align:center; padding:14px; color:var(--fg-3); font-size:13px }
+
+    /* ── Defaults tab ── */
+    .def-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+    .def-title { font-size:17px; font-weight:600; letter-spacing:-.3px }
+    .def-note { font-size:13px; color:var(--fg-2); background:var(--bg-muted); border-radius:var(--r-sm); padding:9px 13px; margin-bottom:14px; line-height:1.5 }
+    .def-divider { border:none; border-top:1px solid var(--border); margin:22px 0 18px }
+
+    /* ── Credit Cards tab ── */
+    .cc-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; flex-wrap:wrap }
+    .cc-bar-right { display:flex; gap:7px }
+
+    /* Grand Summary */
+    .grand-summary { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:16px; margin-bottom:16px; box-shadow:var(--shadow) }
+    .grand-summary-top { display:flex; gap:10px; margin-bottom:12px }
+    .grand-sum-item { flex:1; text-align:center }
+    .grand-sum-label { font-size:11px; font-weight:500; color:var(--fg-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:3px }
+    .grand-sum-val { font-size:20px; font-weight:700; letter-spacing:-.5px; font-variant-numeric:tabular-nums }
+    .grand-sum-val.total { color:var(--fg) }
+    .grand-sum-val.this-bill { color:var(--blue) }
+    .grand-sum-val.next-bill { color:var(--warn) }
+    .grand-divider { border:none; border-top:1px solid var(--border); margin:10px 0 }
+    .people-breakdown { display:flex; flex-direction:column; gap:6px }
+    .gs-sub-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px }
+    .people-row { display:flex; align-items:center; gap:10px }
+    .people-name { font-size:13px; font-weight:500; min-width:70px; color:var(--fg-2) }
+    .people-bar-wrap { flex:1; background:var(--bg-muted); border-radius:3px; height:6px; overflow:hidden }
+    .people-bar-fill { height:100%; border-radius:3px; transition:width .4s ease }
+    .people-amount { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; min-width:80px; text-align:right; color:var(--fg) }
+    .people-pct { font-size:11px; color:var(--fg-3); min-width:32px; text-align:right }
+
+    /* Card section */
+    .card-section { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); margin-bottom:12px; box-shadow:var(--shadow); overflow:hidden }
+    .card-header { display:flex; align-items:center; gap:10px; padding:13px 15px; border-left:4px solid }
+    .bill-gen-badge { font-size:11px; font-weight:600; padding:5px 10px; border-radius:20px; border:1px solid var(--border); background:var(--bg-muted); color:var(--fg-2); cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all .15s }
+    .bill-gen-badge:hover { border-color:var(--blue); color:var(--blue) }
+    .bill-gen-badge.generated { background:var(--accent-bg); border-color:var(--accent); color:var(--accent) }
+    .bill-gen-badge.generated:hover { opacity:.8 }
+    /* Person filter pills */
+    .filter-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px }
+    .filter-label { font-size:12px; font-weight:500; color:var(--fg-3); white-space:nowrap }
+    .filter-pill { padding:5px 13px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card); color:var(--fg-2); font-size:13px; font-weight:500; cursor:pointer; transition:all .15s; white-space:nowrap }
+    .filter-pill:hover { border-color:var(--fg-2); color:var(--fg) }
+    .filter-pill.active { background:var(--accent); border-color:var(--accent); color:#fff }
+    .card-header-info { flex:1; min-width:0 }
+    .card-name { font-size:15px; font-weight:600 }
+    .card-meta { font-size:12px; color:var(--fg-3); margin-top:1px }
+    .card-total { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; flex-shrink:0 }
+    .card-actions { display:flex; gap:2px; flex-shrink:0 }
+    .card-body { padding:0 15px 14px; border-top:1px solid var(--border) }
+
+    /* Bill sections */
+    .bill-section { margin-top:12px }
+    .bill-header { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-radius:var(--r-sm); margin-bottom:8px }
+    .bill-header.this-bill { background:var(--blue-bg); }
+    .bill-header.next-bill { background:var(--warn-bg); }
+    .bill-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em }
+    .bill-header.this-bill .bill-label { color:var(--blue) }
+    .bill-header.next-bill .bill-label { color:var(--warn) }
+    .bill-total { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums }
+    .bill-header.this-bill .bill-total { color:var(--blue) }
+    .bill-header.next-bill .bill-total { color:var(--warn) }
+
+    /* Person groups inside card */
+    .person-group { margin-bottom:10px }
+    .person-group-header { display:flex; align-items:center; justify-content:space-between; padding:4px 0 5px; margin-bottom:4px; border-bottom:1px solid var(--border) }
+    .person-group-name { font-size:12px; font-weight:600; color:var(--fg-2); text-transform:uppercase; letter-spacing:.04em }
+    .person-group-total { font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--fg-2) }
+
+    /* Transaction rows */
+    .txn-row { display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border) }
+    .txn-row:last-child { border-bottom:none }
+    .txn-amount { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; flex-shrink:0; min-width:70px }
+    .txn-details { flex:1; min-width:0 }
+    .txn-for { font-size:14px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+    .txn-on { font-size:11px; color:var(--fg-3) }
+    .txn-date { font-size:11px; color:var(--fg-3); flex-shrink:0 }
+    .txn-actions { display:flex; flex-shrink:0 }
+
+    /* Card "no txns" banner */
+    .card-empty { padding:14px; text-align:center; color:var(--fg-3); font-size:13px }
+
+    /* Manage cards modal list */
+    .manage-list { display:flex; flex-direction:column; gap:8px; margin-bottom:16px }
+    .manage-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--bg-muted); border-radius:var(--r-sm) }
+    .manage-item-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0 }
+    .manage-item-info { flex:1; min-width:0 }
+    .manage-item-name { font-weight:500; font-size:14px }
+    .manage-item-meta { font-size:11px; color:var(--fg-3) }
+    .manage-actions { display:flex; gap:2px }
+
+    /* ── Modal ── */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:200; display:flex; align-items:flex-end }
+    @media(min-width:520px){ .modal-backdrop{ align-items:center; padding:20px } }
+    .modal { background:var(--bg-card); border-radius:var(--r) var(--r) 0 0; width:100%; max-width:480px; margin:0 auto; padding:22px 20px 28px; max-height:90vh; overflow-y:auto }
+    @media(min-width:520px){ .modal{ border-radius:var(--r); max-height:85vh } }
+    .modal-title { font-size:17px; font-weight:600; margin-bottom:16px; letter-spacing:-.3px }
+    .form-group { margin-bottom:13px }
+    .form-label { display:block; font-size:12px; font-weight:500; color:var(--fg-2); margin-bottom:4px }
+    .form-input, .form-select { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--bg); color:var(--fg); font-family:inherit; font-size:14px; outline:none; transition:border-color .15s }
+    .form-input:focus, .form-select:focus { border-color:var(--accent) }
+    .form-input.err { border-color:var(--danger) }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:11px }
+    .modal-actions { display:flex; gap:7px; justify-content:flex-end; margin-top:18px }
+
+    /* People manager */
+    .people-list { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; max-height:200px; overflow-y:auto }
+    .people-item { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:var(--bg-muted); border-radius:var(--r-sm) }
+    .people-item-name { font-size:14px; font-weight:500 }
+    .add-person-row { display:flex; gap:8px }
+
+    /* Color picker */
+    .color-picker { display:flex; gap:8px; flex-wrap:wrap }
+    .color-swatch { width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all .15s }
+    .color-swatch.selected { border-color:var(--fg); transform:scale(1.1) }
+
+    /* Toast */
+    .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(70px); background:var(--fg); color:var(--bg); padding:9px 18px; border-radius:20px; font-size:13px; z-index:999; transition:transform .3s ease; white-space:nowrap; pointer-events:none }
+    .toast.show { transform:translateX(-50%) translateY(0) }
+
+    @media(max-width:480px){
+      .summary{ grid-template-columns:1fr 1fr }
+      .summary .sum-card.c-total{ grid-column:1/-1 }
+      .grand-summary-top{ flex-direction:column; gap:6px }
+      .month-label{ min-width:120px; font-size:14px }
+      .txn-row{ flex-wrap:wrap }
+    }
+
+    /* ── Firebase / Auth UI ── */
+    .login-screen { position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:18px; padding:24px }
+    .login-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r); padding:36px 32px; text-align:center; max-width:360px; width:100%; box-shadow:var(--shadow) }
+    .login-logo { font-size:28px; font-weight:700; letter-spacing:-.5px; margin-bottom:6px }
+    .login-logo em { color:var(--accent); font-style:normal }
+    .login-sub { font-size:14px; color:var(--fg-2); margin-bottom:24px }
+    .btn-google { display:inline-flex; align-items:center; gap:10px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 20px; font-size:14px; font-weight:500; color:var(--fg); cursor:pointer; font-family:inherit; box-shadow:var(--shadow); transition:all .15s }
+    .btn-google:hover { border-color:var(--fg-2); box-shadow:0 2px 8px rgba(0,0,0,.12) }
+    .google-icon { width:18px; height:18px }
+
+    /* read-only banner */
+    .readonly-banner { background:var(--warn-bg); border:1px solid var(--warn); border-radius:var(--r-sm); padding:10px 16px; display:flex; align-items:center; gap:10px; margin-bottom:12px; font-size:13px; color:var(--warn) }
+    .readonly-banner b { flex:1 }
+
+    /* workspace dropdown */
+    .ws-dropdown { position:relative; display:inline-block }
+    .ws-btn { display:flex; align-items:center; gap:6px; background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--r-sm); padding:5px 10px; cursor:pointer; font-size:13px; font-weight:500; color:var(--fg-2); font-family:inherit }
+    .ws-btn:hover { border-color:var(--fg-2); color:var(--fg) }
+    .ws-menu { position:absolute; right:0; top:calc(100%+4px); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--r-sm); box-shadow:0 4px 16px rgba(0,0,0,.15); min-width:220px; z-index:300; overflow:hidden }
+    .ws-menu-item { display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; font-size:13px; transition:background .1s }
+    .ws-menu-item:hover { background:var(--bg-muted) }
+    .ws-menu-item.active-ws { color:var(--accent); font-weight:600 }
+    .ws-menu-sep { border:none; border-top:1px solid var(--border); margin:4px 0 }
+    .ws-menu-section { font-size:11px; color:var(--fg-3); font-weight:600; text-transform:uppercase; letter-spacing:.06em; padding:8px 14px 4px }
+    .avatar { width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; flex-shrink:0; cursor:pointer; overflow:hidden }
+    .avatar img { width:100%; height:100%; object-fit:cover }
+
+    /* share access modal */
+    .share-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border) }
+    .share-row:last-child { border-bottom:none }
+    .share-email { flex:1; font-size:13px; word-break:break-all }
+    .share-badge { font-size:11px; background:var(--accent-bg); color:var(--accent); border-radius:20px; padding:2px 8px; font-weight:500 }
+
+    /* read-only hides write actions */
+    body.read-only .btn-primary,
+    body.read-only .btn-danger,
+    body.read-only #clearBtn,
+    body.read-only .clear-btn { display:none !important }
+  </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── Login Screen ── -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">M<em>M</em>M</div>
+    <div class="login-sub">Sign in to access your personal money manager</div>
+    <button class="btn-google" onclick="signInWithGoogle()">
+      <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="logo">M<em>M</em>M <span>My Money Manager</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="clear-btn" id="clearBtn" onclick="askClearAll()">🗑 Clear All</button>
+      <!-- Firebase workspace switcher -->
+      <div class="ws-dropdown" id="wsDropdown">
+        <button class="ws-btn" onclick="toggleWorkspaceMenu()" id="wsBtn">🏠 My Data ▾</button>
+        <div class="ws-menu" id="wsMenu" hidden></div>
+      </div>
+      <div class="avatar" id="userAvatar" title="Sign out" onclick="confirmSignOut()">?</div>
+      <button class="theme-btn" id="themeBtn" title="Toggle theme">🌓</button>
+    </div>
+  </div>
+</header>
+
+<!-- Read-only banner (shown when viewing someone else's workspace) -->
+<div id="readonlyBanner" hidden style="max-width:740px;margin:8px auto 0;padding:0 20px">
+  <div class="readonly-banner">
+    <span>👁</span>
+    <b id="readonlyBannerText">Viewing shared workspace (read-only)</b>
+    <button class="btn btn-sm btn-outline" onclick="switchWorkspace(myUid)">← Back to My Data</button>
+  </div>
+</div>
+
+<main class="main">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tabMonth"    onclick="switchTab('month')">📅 This Month</button>
+    <button class="tab-btn"        id="tabCards"    onclick="switchTab('cards')">💳 Credit Cards</button>
+    <button class="tab-btn"        id="tabLb"       onclick="switchTab('lb')">🤝 LB</button>
+    <button class="tab-btn"        id="tabDefaults" onclick="switchTab('defaults')">⚙️ Defaults</button>
+  </div>
+
+  <!-- ═══════════════ THIS MONTH TAB ═══════════════ -->
+  <div id="viewMonth">
+    <div class="month-bar">
+      <div class="month-nav-group">
+        <button class="month-nav" onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="month-nav" onclick="changeMonth(1)">›</button>
+      </div>
+      <button class="btn btn-primary" onclick="openExpenseModal()">+ Add</button>
+    </div>
+
+    <div class="create-banner" id="createBanner">
+      <p>No expenses set up for this month yet.</p>
+      <button class="btn btn-primary" onclick="createMonthFromDefaults()">✨ Copy Defaults to Start</button>
+    </div>
+
+    <div id="monthContent">
+      <div class="summary">
+        <div class="sum-card c-total">
+          <div class="sum-label">Total Budget</div>
+          <div class="sum-amount" id="sumTotal">₹0</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" id="sumBar" style="width:0%"></div></div>
+        </div>
+        <div class="sum-card c-paid">
+          <div class="sum-label">Paid ✓</div>
+          <div class="sum-amount" id="sumPaid">₹0</div>
+        </div>
+        <div class="sum-card c-pend">
+          <div class="sum-label">Remaining</div>
+          <div class="sum-amount" id="sumPending">₹0</div>
+        </div>
+      </div>
+      <div class="progress-text" id="progressText"></div>
+      <div id="unpaidSection">
+        <div class="sec-head">
+          <span class="sec-title">Pending</span>
+          <span class="sec-count" id="unpaidCount">0</span>
+        </div>
+        <div class="expense-list" id="unpaidList"></div>
+      </div>
+      <div id="paidSection">
+        <div class="sec-head">
+          <span class="sec-title">Completed</span>
+          <span class="sec-count" id="paidCount">0</span>
+        </div>
+        <div class="expense-list" id="paidList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ CREDIT CARDS TAB ═══════════════ -->
+  <div id="viewCards" hidden>
+    <div class="cc-bar">
+      <div class="month-nav-group">
+        <button class="month-nav" onclick="changeMonth(-1); renderCards()">‹</button>
+        <div class="month-label" id="ccMonthLabel"></div>
+        <button class="month-nav" onclick="changeMonth(1); renderCards()">›</button>
+      </div>
+      <button class="btn btn-outline btn-sm" id="shareBtn" onclick="openShareModal()" hidden>📤 Share</button>
+    </div>
+
+    <div class="create-banner" id="ccCreateBanner" hidden>
+      <p>No card transactions for this month yet.</p>
+      <button class="btn btn-primary" onclick="createCardDefaultsForMonth()">✨ Copy Card Defaults to Start</button>
+    </div>
+
+    <!-- Person filter -->
+    <div class="filter-bar" id="ccFilterBar" hidden></div>
+
+    <!-- Grand Summary -->
+    <div class="grand-summary" id="grandSummary" hidden>
+      <div class="grand-summary-top">
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Total (All Cards)</div>
+          <div class="grand-sum-val total" id="gsTotal">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">This Bill (Closed)</div>
+          <div class="grand-sum-val this-bill" id="gsThisBill">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Next Bill (Open)</div>
+          <div class="grand-sum-val next-bill" id="gsNextBill">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Cash / Wallet</div>
+          <div class="grand-sum-val" id="gsCash" style="color:#059669">₹0</div>
+        </div>
+      </div>
+      <hr class="grand-divider">
+      <div class="people-breakdown" id="gsPeopleBreakdown"></div>
+    </div>
+
+    <div id="ccNoCards" style="text-align:center;padding:40px 16px;color:var(--fg-3)">
+      <div style="font-size:32px;margin-bottom:8px">💳</div>
+      <p style="color:var(--fg-2);margin-bottom:4px">No credit cards added yet</p>
+      <small>Go to the <strong>Defaults</strong> tab to add your cards</small>
+    </div>
+
+    <div id="cardsList"></div>
+
+    <!-- Cash / Wallet section -->
+    <div id="cashSection" hidden style="margin-top:18px">
+      <div class="card-header" style="border-left-color:#059669;border-radius:var(--r-sm);background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div class="card-name">💵 Cash / Wallet Payments</div>
+          <div class="card-meta" id="cashSectionMeta"></div>
+        </div>
+        <div class="card-total" id="cashSectionTotal">₹0</div>
+        <button class="btn btn-ghost" onclick="openCashTxnModal()" title="Add cash payment" style="font-size:16px;font-weight:600">+</button>
+      </div>
+      <div id="cashTxnsList"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ LB MANAGER TAB ═══════════════ -->
+  <div id="viewLb" hidden>
+
+    <!-- Summary strip -->
+    <div class="grand-summary" id="lbSummary" style="margin-bottom:14px">
+      <div class="grand-summary-top">
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">I Lent Out</div>
+          <div class="grand-sum-val" id="lbTotalLent" style="color:var(--blue)">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">I Borrowed</div>
+          <div class="grand-sum-val" id="lbTotalBorrowed" style="color:var(--warn)">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Net (Lent − Borrowed)</div>
+          <div class="grand-sum-val" id="lbNet">₹0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter: All / Pending / Settled -->
+    <div class="filter-bar" id="lbFilterBar" style="margin-bottom:10px">
+      <span class="filter-label">Show:</span>
+      <button class="filter-pill active" id="lbPillAll"     onclick="setLbFilter('all')">All</button>
+      <button class="filter-pill"        id="lbPillPending" onclick="setLbFilter('pending')">⏳ Pending</button>
+      <button class="filter-pill"        id="lbPillSettled" onclick="setLbFilter('settled')">✅ Settled</button>
+    </div>
+
+    <!-- Add button row -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-primary" style="flex:1" onclick="openLbModal('lent')">+ I Lent</button>
+      <button class="btn btn-outline" style="flex:1" onclick="openLbModal('borrowed')">+ I Borrowed</button>
+    </div>
+
+    <div id="lbList"></div>
+  </div>
+
+  <!-- ═══════════════ DEFAULTS TAB ═══════════════ -->
+  <div id="viewDefaults" hidden>
+
+    <!-- Clear All confirm strip (hidden by default) -->
+    <div class="confirm-strip" id="clearConfirm" hidden>
+      ⚠️ This will delete <strong style="margin:0 3px">all data</strong> — expenses, cards, transactions. Cannot be undone.
+      <button class="btn btn-danger btn-sm" onclick="confirmClearAll()" style="margin-left:auto">Yes, Clear All</button>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('clearConfirm').hidden=true">Cancel</button>
+    </div>
+
+    <!-- Section 1: Monthly Expenses -->
+    <div class="def-header">
+      <div class="def-title">Monthly Expenses</div>
+      <button class="btn btn-primary" onclick="openExpenseModal('default')">+ Add</button>
+    </div>
+    <div class="def-note">Auto-copy to every new month via "Copy Defaults to Start".</div>
+    <div class="expense-list" id="defaultsList"></div>
+
+    <!-- Section 2: Credit Cards -->
+    <hr class="def-divider">
+    <div class="def-header">
+      <div class="def-title">Credit Cards</div>
+      <button class="btn btn-primary" onclick="openCardModal()">+ Add Card</button>
+    </div>
+    <div class="def-note">Add your cards here. Use 📋 to set recurring EMIs/defaults per card.</div>
+    <div id="cardManageList"></div>
+
+    <!-- Section 3: People -->
+    <hr class="def-divider">
+    <div class="def-header">
+      <div class="def-title">Spent By (People)</div>
+    </div>
+    <div class="def-note">Names that appear in the "Spent By" dropdown on card transactions.</div>
+    <div class="people-list" id="defPeopleList"></div>
+    <div class="add-person-row" style="margin-top:8px">
+      <input class="form-input" id="defNewPerson" placeholder="e.g. Tannu, Dad, Wife">
+      <button class="btn btn-primary" onclick="addPersonFromDefs()">Add</button>
+    </div>
+
+    <!-- Section 4: Cash / Wallet Sources -->
+    <hr class="def-divider">
+    <div class="def-header">
+      <div class="def-title">Cash / Wallet Sources</div>
+    </div>
+    <div class="def-note">Sources like Pluxee, Slice, Cash — appear in the "Source" dropdown on cash payments.</div>
+    <div class="people-list" id="defCashSourceList"></div>
+    <div class="add-person-row" style="margin-top:8px">
+      <input class="form-input" id="defNewCashSource" placeholder="e.g. Pluxee, Slice, Cash">
+      <button class="btn btn-primary" onclick="addCashSourceFromDefs()">Add</button>
+    </div>
+
+  </div>
+</main>
+
+<!-- ═══ MODAL: Monthly Expense ═══ -->
+<div class="modal-backdrop" id="expModal" hidden onclick="if(event.target===this)closeExpModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="expModalTitle">Add Expense</div>
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input class="form-input" id="eName" placeholder="e.g. Rent, Netflix">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="eAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select class="form-select" id="eCategory">
+          <option>Housing</option><option>Food</option><option>Transport</option>
+          <option>Utilities</option><option>Entertainment</option><option>Health</option>
+          <option>Shopping</option><option>EMI / Loan</option><option>Insurance</option>
+          <option>Savings</option><option>Investment</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Due Day <span style="color:var(--fg-3);font-weight:400">(optional)</span></label>
+      <input class="form-input" id="eDueDate" type="number" placeholder="e.g. 5" min="1" max="31">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeExpModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveExpense()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: CC Transaction ═══ -->
+<div class="modal-backdrop" id="txnModal" hidden onclick="if(event.target===this)closeTxnModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="txnModalTitle">Add Transaction</div>
+    <input type="hidden" id="txnCardId">
+    <input type="hidden" id="txnId">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="tAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Spent By</label>
+        <select class="form-select" id="tSpentBy"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Spent For</label>
+      <input class="form-input" id="tSpentFor" placeholder="e.g. AC EMI, Groceries, Shoes">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Spent On (Platform)</label>
+        <input class="form-input" id="tSpentOn" placeholder="e.g. Flipkart, Amazon">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="tDate" type="date">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeTxnModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveTxn()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Manage Cards ═══ -->
+<div class="modal-backdrop" id="cardModal" hidden onclick="if(event.target===this)closeCardModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="cardModalTitle">Add Card</div>
+    <input type="hidden" id="cardEditId">
+    <div class="form-group">
+      <label class="form-label">Card Name</label>
+      <input class="form-input" id="cName" placeholder="e.g. HDFC Regalia, SBI SimplyCLICK">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Bill Date (day of month)</label>
+        <input class="form-input" id="cBillDate" type="number" placeholder="e.g. 15" min="1" max="31">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due Date (day of month)</label>
+        <input class="form-input" id="cDueDate" type="number" placeholder="e.g. 5" min="1" max="31">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Card Color</label>
+      <div class="color-picker" id="colorPicker"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeCardModal()">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveCard()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: People Manager ═══ -->
+<div class="modal-backdrop" id="peopleModal" hidden onclick="if(event.target===this)document.getElementById('peopleModal').hidden=true">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Manage People</div>
+    <div class="def-note">People listed here appear in the "Spent By" dropdown on all transactions.</div>
+    <div class="people-list" id="peopleList"></div>
+    <div class="add-person-row">
+      <input class="form-input" id="newPersonName" placeholder="Add name (e.g. Tannu, Dad)">
+      <button class="btn btn-primary" onclick="addPerson()">Add</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('peopleModal').hidden=true">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Card Defaults ═══ -->
+<div class="modal-backdrop" id="cardDefsModal" hidden onclick="if(event.target===this)closeCardDefsModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="cardDefsTitle">Card Defaults</div>
+    <div class="def-note">Default transactions auto-copy to each new month for this card.</div>
+    <div class="expense-list" id="cardDefsList"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--fg-2);margin-bottom:8px">Add Default Transaction</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="cdAmount" type="number" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Spent By</label>
+        <select class="form-select" id="cdSpentBy"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Spent For</label>
+      <input class="form-input" id="cdSpentFor" placeholder="e.g. AC EMI">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Platform / Merchant</label>
+        <input class="form-input" id="cdSpentOn" placeholder="e.g. Flipkart">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Day of Month</label>
+        <input class="form-input" id="cdDay" type="number" placeholder="e.g. 5" min="1" max="31">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" onclick="closeCardDefsModal()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="addCardDefault()">Add Default</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Share ═══ -->
+<div class="modal-backdrop" id="shareModal" hidden onclick="if(event.target===this)document.getElementById('shareModal').hidden=true">
+  <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" style="margin-bottom:0" id="shareModalTitle">Summary</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-primary btn-sm" onclick="copyShareText()">📋 Copy</button>
+        <button class="btn btn-outline btn-sm" onclick="whatsappShare()">💬 WhatsApp</button>
+      </div>
+    </div>
+    <div class="def-note" style="margin-bottom:10px" id="shareModalSub"></div>
+    <textarea id="shareTextarea" readonly
+      style="width:100%;height:340px;resize:vertical;font-family:monospace;font-size:12px;line-height:1.6;padding:12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--fg);outline:none"></textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('shareModal').hidden=true">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: LB Entry ═══ -->
+<div class="modal-backdrop" id="lbModal" hidden onclick="if(event.target===this)closeLbModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="lbModalTitle">Add Entry</div>
+    <input type="hidden" id="lbEntryId">
+    <!-- Type toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn" id="lbTypeLent"     onclick="setLbType('lent')"     style="flex:1;font-weight:600">💸 I Lent</button>
+      <button class="btn" id="lbTypeBorrowed" onclick="setLbType('borrowed')" style="flex:1;font-weight:600">🤲 I Borrowed</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="lbAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="lbPersonLabel">To (Person)</label>
+        <input class="form-input" id="lbPerson" placeholder="Name" list="lbPersonList">
+        <datalist id="lbPersonList"></datalist>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason / Note</label>
+      <input class="form-input" id="lbReason" placeholder="e.g. Travel, Emergency, Rent">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="lbDate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due / Expected By</label>
+        <input class="form-input" id="lbDueDate" type="date" placeholder="Optional">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeLbModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLbEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Repayment ═══ -->
+<div class="modal-backdrop" id="repaymentModal" hidden onclick="if(event.target===this)closeRepaymentModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-title" id="repaymentModalTitle">Add Repayment</div>
+    <input type="hidden" id="repEntryId">
+    <div style="background:var(--bg-muted);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:14px;font-size:13px">
+      <div id="repSummary" style="color:var(--fg-2)"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount Received / Paid (₹)</label>
+        <input class="form-input" id="repAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="repDate" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note (optional)</label>
+      <input class="form-input" id="repNote" placeholder="e.g. UPI, Cash, Partial">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeRepaymentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRepayment()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Cash/Wallet Transaction ═══ -->
+<div class="modal-backdrop" id="cashTxnModal" hidden onclick="if(event.target===this)closeCashTxnModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="cashTxnModalTitle">Add Cash Payment</div>
+    <input type="hidden" id="cashTxnId">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="ctAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Source</label>
+        <select class="form-input" id="ctSource"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Spent For</label>
+      <input class="form-input" id="ctSpentFor" placeholder="e.g. Lunch, Fuel">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Spent By</label>
+        <select class="form-input" id="ctSpentBy"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="ctDate" type="date">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeCashTxnModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCashTxn()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────
+let state = {
+  months: {},      // { 'YYYY-MM': [{id,name,amount,category,dueDate,paid}] }
+  defaults: [],    // [{id,name,amount,category,dueDate}]
+  cards: [],       // [{id,name,billDate,dueDate,color,defaults:[]}]
+  cardTxns: {},    // { cardId: { 'YYYY-MM': [{id,amount,spentFor,spentBy,spentOn,date}] } }
+  people: [],      // string[]
+  cashTxns: {},    // { 'YYYY-MM': [{id,amount,spentFor,spentBy,source,date}] }
+  cashSources: [], // string[] e.g. ['Pluxee', 'Slice']
+  lbEntries: []    // [{id,type:'lent'|'borrowed',person,amount,reason,date,dueDate,settled}]
+};
+let curYear, curMonth;
+let expEditId = null, expEditCtx = null;
+let activeCardDefId = null; // card being managed in defaults modal
+let ccFilter = null; // null = show All people, or a person name string
+
+const MN = ['January','February','March','April','May','June',
+            'July','August','September','October','November','December'];
+const COLORS = ['#2563eb','#7c3aed','#dc2626','#059669','#d97706','#0891b2','#db2777','#ea580c'];
+
+const key  = (y, m) => `${y}-${String(m+1).padStart(2,'0')}`;
+const uid  = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+const fmt  = n  => '₹' + Number(n||0).toLocaleString('en-IN');
+const ord  = n  => { const s=['th','st','nd','rd'],v=n%100; return s[(v-20)%10]||s[v]||s[0] };
+const esc  = s  => String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today = () => new Date().toISOString().split('T')[0];
+const dateDay = d => d ? new Date(d + 'T00:00:00').getDate() : 0;
+
+// ─────────────────────────────────────────────────────────────
+// Persistence — save() and load() are replaced by Firebase versions below.
+// These stubs remain so the original code compiles; Firebase overrides them at runtime.
+function save() { /* overridden by Firebase save() below */ }
+function load()  { /* Firebase listener handles loading; init() calls applyMigration() */ }
+
+// ─────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────
+function init() {
+  // Firebase version: auth listener handles loading data → switchWorkspace().
+  // We just initialize the date and render a blank UI; Firebase fills it in.
+  const now = new Date();
+  curYear = now.getFullYear(); curMonth = now.getMonth();
+  renderMonth();
+  // Hide workspace controls until logged in
+  document.getElementById('wsDropdown').hidden = true;
+  document.getElementById('userAvatar').hidden = true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  ['Month','Cards','Lb','Defaults'].forEach(t => {
+    document.getElementById('tab'+t).classList.toggle('active', t.toLowerCase()===tab);
+    document.getElementById('view'+t).hidden = t.toLowerCase()!==tab;
+  });
+  if (tab==='cards')    renderCards();
+  if (tab==='defaults') renderDefaults();
+  if (tab==='lb')       renderLb();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Month navigation (shared)
+// ─────────────────────────────────────────────────────────────
+function changeMonth(d) {
+  curMonth += d;
+  if (curMonth < 0)  { curMonth=11; curYear-- }
+  if (curMonth > 11) { curMonth=0;  curYear++ }
+  ccFilter = null; // reset person filter on month change
+  const label = `${MN[curMonth]} ${curYear}`;
+  document.getElementById('monthLabel').textContent   = label;
+  document.getElementById('ccMonthLabel').textContent = label;
+  if (!document.getElementById('viewMonth').hidden)   renderMonth();
+  if (!document.getElementById('viewCards').hidden)   renderCards();
+}
+
+// ─────────────────────────────────────────────────────────────
+// THIS MONTH tab
+// ─────────────────────────────────────────────────────────────
+function renderMonth() {
+  const k    = key(curYear, curMonth);
+  const exps = state.months[k];
+  document.getElementById('monthLabel').textContent = `${MN[curMonth]} ${curYear}`;
+  const hasBanner = !exps;
+  document.getElementById('createBanner').hidden  = !hasBanner;
+  document.getElementById('monthContent').hidden  =  hasBanner;
+  if (hasBanner) return;
+
+  const total = exps.reduce((s,e)=>s+Number(e.amount||0), 0);
+  const paid  = exps.filter(e=>e.paid).reduce((s,e)=>s+Number(e.amount||0), 0);
+  const pct   = total>0 ? (paid/total*100).toFixed(0) : 0;
+  document.getElementById('sumTotal').textContent   = fmt(total);
+  document.getElementById('sumPaid').textContent    = fmt(paid);
+  document.getElementById('sumPending').textContent = fmt(total-paid);
+  document.getElementById('sumBar').style.width     = pct+'%';
+  const pN = exps.filter(e=>e.paid).length;
+  document.getElementById('progressText').textContent = `${pN} of ${exps.length} paid · ${pct}% settled`;
+
+  const unpaid = exps.filter(e=>!e.paid);
+  const paidL  = exps.filter(e=>e.paid);
+  document.getElementById('unpaidCount').textContent = unpaid.length;
+  document.getElementById('paidCount').textContent   = paidL.length;
+  document.getElementById('unpaidList').innerHTML = unpaid.length
+    ? unpaid.map(e=>expCard(e,k)).join('') : '<div class="empty-block">🎉 All done!</div>';
+  document.getElementById('paidList').innerHTML = paidL.length
+    ? paidL.map(e=>expCard(e,k)).join('') : '<div class="empty-block" style="font-size:12px;color:var(--fg-3)">None yet</div>';
+  document.getElementById('paidSection').hidden = !paidL.length;
+}
+
+function expCard(e, k) {
+  const chk = `<svg width="11" height="11" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<div class="expense-item ${e.paid?'done':''}">
+    <button class="check-btn" onclick="togglePaid('${k}','${e.id}')">${e.paid?chk:''}</button>
+    <div class="exp-info">
+      <div class="exp-name">${esc(e.name)}</div>
+      <div class="exp-meta">
+        <span class="cat-tag">${esc(e.category)}</span>
+        ${e.dueDate?`<span class="due-tag">Due ${e.dueDate}${ord(e.dueDate)}</span>`:''}
+      </div>
+    </div>
+    <div class="exp-amount">${fmt(e.amount)}</div>
+    <div class="exp-actions">
+      <button class="btn btn-ghost" onclick="openExpenseModal(null,'${k}','${e.id}')">✏️</button>
+      <button class="btn btn-danger" onclick="delExpense('${k}','${e.id}')">🗑</button>
+    </div>
+  </div>`;
+}
+
+function togglePaid(k, id) {
+  const e = state.months[k].find(x=>x.id===id);
+  if (e) { e.paid=!e.paid; save(); renderMonth() }
+}
+
+function delExpense(k, id) {
+  state.months[k] = state.months[k].filter(x=>x.id!==id);
+  save(); renderMonth(); toast('Removed');
+}
+
+function createMonthFromDefaults() {
+  const k = key(curYear, curMonth);
+  // Monthly expenses
+  state.months[k] = state.defaults.map(d=>({...d, id:uid(), paid:false}));
+  // Card defaults → card transactions
+  state.cards.forEach(card => {
+    if (!card.defaults || !card.defaults.length) return;
+    if (!state.cardTxns[card.id]) state.cardTxns[card.id] = {};
+    // Only if no txns exist yet for this month
+    if (!state.cardTxns[card.id][k]) {
+      state.cardTxns[card.id][k] = card.defaults.map(d => {
+        const day  = d.day || 1;
+        const date = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        return { id:uid(), amount:d.amount, spentFor:d.spentFor, spentBy:d.spentBy, spentOn:d.spentOn, date };
+      });
+    }
+  });
+  save(); renderMonth(); toast(`${MN[curMonth]} loaded from defaults!`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// CREDIT CARDS tab
+// ─────────────────────────────────────────────────────────────
+function renderCards() {
+  document.getElementById('ccMonthLabel').textContent = `${MN[curMonth]} ${curYear}`;
+  const k       = key(curYear, curMonth);
+  const hasCards = state.cards.length > 0;
+  document.getElementById('ccNoCards').hidden  = hasCards;
+  // grandSummary shown when there are cards OR cash txns
+  const hasCashThisMonth = (state.cashTxns[k]||[]).length > 0;
+  document.getElementById('grandSummary').hidden = !hasCards && !hasCashThisMonth;
+
+  // Cash txns for this month (computed before early-exit so cash section always renders)
+  const allCashTxns = state.cashTxns[k] || [];
+  const cashTxns    = ccFilter ? allCashTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allCashTxns;
+  const hasCashTxns = allCashTxns.length > 0;
+  renderCashSection(cashTxns, k);
+
+  if (!hasCards) {
+    document.getElementById('cardsList').innerHTML='';
+    document.getElementById('ccCreateBanner').hidden=true;
+    document.getElementById('ccFilterBar').hidden=true;
+    document.getElementById('shareBtn').hidden = !hasCashTxns;
+    if (hasCashTxns) {
+      const ct = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+      document.getElementById('gsTotal').textContent = fmt(ct);
+      document.getElementById('gsThisBill').textContent = '₹0';
+      document.getElementById('gsNextBill').textContent = '₹0';
+      document.getElementById('gsCash').textContent = fmt(ct);
+      document.getElementById('gsCash').parentElement.hidden = false;
+      const byP = {};
+      cashTxns.forEach(t => { const p=t.spentBy||'Unknown'; byP[p]=(byP[p]||0)+Number(t.amount||0) });
+      let bHtml = '';
+      if (Object.keys(byP).length) {
+        bHtml = `<div class="gs-sub-label" style="color:#059669">Cash / Wallet — by person</div>` + buildPeopleRows(byP, ct);
+      }
+      document.getElementById('gsPeopleBreakdown').innerHTML = bHtml || '<div style="font-size:13px;color:var(--fg-3)">No transactions this month</div>';
+    }
+    return;
+  }
+
+  // Show "Copy Defaults to Start" banner if no card has any transactions this month
+  const hasAnyTxns = state.cards.some(c => ((state.cardTxns[c.id]||{})[k]||[]).length > 0);
+  const hasAnyDefaults = state.cards.some(c => c.defaults && c.defaults.length > 0);
+  document.getElementById('ccCreateBanner').hidden = hasAnyTxns || !hasAnyDefaults;
+
+  // Show share button when there are any transactions (cards or cash)
+  document.getElementById('shareBtn').hidden = !hasAnyTxns && !hasCashTxns;
+
+  // Build person filter pills from people who have txns this month (cards + cash)
+  const peopleThisMonth = new Set();
+  state.cards.forEach(c => ((state.cardTxns[c.id]||{})[k]||[]).forEach(t => peopleThisMonth.add(t.spentBy||'Unknown')));
+  allCashTxns.forEach(t => peopleThisMonth.add(t.spentBy||'Unknown'));
+  const filterBar = document.getElementById('ccFilterBar');
+  if (peopleThisMonth.size > 0) {
+    const pills = ['All', ...Array.from(peopleThisMonth)].map(p => {
+      const isActive = p === 'All' ? !ccFilter : ccFilter === p;
+      return `<button class="filter-pill ${isActive?'active':''}" onclick="setCCFilter(${p==='All'?'null':'\''+p+'\''})"> ${p==='All'?'👥 ':''} ${p}</button>`;
+    }).join('');
+    filterBar.innerHTML = `<span class="filter-label">Filter by:</span>${pills}`;
+    filterBar.hidden = false;
+  } else {
+    filterBar.hidden = true;
+  }
+
+  // Compute grand totals using flag-based bill split + cash
+  let grandTotal=0, grandThis=0, grandNext=0;
+  const byPersonThis = {}, byPersonNext = {}, byPersonCash = {};
+
+  // Cash totals
+  const cashTotal = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+  cashTxns.forEach(t => { const p=t.spentBy||'Unknown'; byPersonCash[p]=(byPersonCash[p]||0)+Number(t.amount||0) });
+  grandTotal += cashTotal;
+
+  const allCardData = state.cards.map(card => {
+    const allTxns    = (state.cardTxns[card.id]||{})[k] || [];
+    const txns       = ccFilter ? allTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allTxns;
+    const billGen    = !!state.billGenerated[card.id+'_'+k];
+    const thisBill   = txns.filter(t => !t.nextBill);
+    const nextBill   = txns.filter(t =>  t.nextBill);
+    const thisAmt    = sum(thisBill);
+    const nextAmt    = sum(nextBill);
+    grandTotal += thisAmt + nextAmt;
+    grandThis  += thisAmt;
+    grandNext  += nextAmt;
+    thisBill.forEach(t => { const p=t.spentBy||'Unknown'; byPersonThis[p]=(byPersonThis[p]||0)+Number(t.amount||0) });
+    nextBill.forEach(t => { const p=t.spentBy||'Unknown'; byPersonNext[p]=(byPersonNext[p]||0)+Number(t.amount||0) });
+    return { card, txns, thisBill, nextBill, thisAmt, nextAmt, billGen };
+  });
+
+  // Grand summary
+  document.getElementById('gsTotal').textContent    = fmt(grandTotal);
+  document.getElementById('gsThisBill').textContent = fmt(grandThis);
+  document.getElementById('gsNextBill').textContent = fmt(grandNext);
+  document.getElementById('gsCash').textContent     = fmt(cashTotal);
+  document.getElementById('gsCash').parentElement.hidden = cashTotal === 0;
+
+  // Combined by person (This + Next + Cash)
+  const byPersonAll = {};
+  [...Object.entries(byPersonThis), ...Object.entries(byPersonNext), ...Object.entries(byPersonCash)].forEach(([p, amt]) => {
+    byPersonAll[p] = (byPersonAll[p]||0) + amt;
+  });
+  const hasThis = Object.keys(byPersonThis).length > 0;
+  const hasNext = Object.keys(byPersonNext).length > 0;
+  const hasCash = Object.keys(byPersonCash).length > 0;
+  const hasAny  = Object.keys(byPersonAll).length > 0;
+  let breakdownHtml = '';
+  if (hasThis) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:var(--blue)">This Bill — by person</div>`;
+    breakdownHtml += buildPeopleRows(byPersonThis, grandThis);
+  }
+  if (hasNext) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:var(--warn);margin-top:12px">Next Bill — by person</div>`;
+    breakdownHtml += buildPeopleRows(byPersonNext, grandNext);
+  }
+  if (hasCash) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:#059669;margin-top:12px">Cash / Wallet — by person</div>`;
+    breakdownHtml += buildPeopleRows(byPersonCash, cashTotal);
+  }
+  if (hasThis && hasNext || hasCash) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:var(--fg-2);margin-top:12px">Total (All) — by person</div>`;
+    breakdownHtml += buildPeopleRows(byPersonAll, grandTotal);
+  }
+  if (!hasAny) breakdownHtml = '<div style="font-size:13px;color:var(--fg-3)">No transactions this month</div>';
+  document.getElementById('gsPeopleBreakdown').innerHTML = breakdownHtml;
+
+  // Per-card sections
+  document.getElementById('cardsList').innerHTML = allCardData.map(({card, txns, thisBill, nextBill, thisAmt, nextAmt, billGen}) =>
+    renderCardSection(card, txns, thisBill, nextBill, thisAmt, nextAmt, billGen, k)
+  ).join('');
+}
+
+function sum(txns) { return txns.reduce((s,t)=>s+Number(t.amount||0), 0) }
+
+const P_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2'];
+function buildPeopleRows(byPerson, total) {
+  return Object.entries(byPerson).sort((a,b)=>b[1]-a[1]).map(([name, amt], i) => {
+    const pct = total>0 ? (amt/total*100).toFixed(0) : 0;
+    return `<div class="people-row">
+      <div class="people-name">${esc(name)}</div>
+      <div class="people-bar-wrap"><div class="people-bar-fill" style="width:${pct}%;background:${P_COLORS[i%P_COLORS.length]}"></div></div>
+      <div class="people-amount">${fmt(amt)}</div>
+      <div class="people-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function setCCFilter(person) {
+  ccFilter = person;
+  renderCards();
+}
+
+function toggleBillGenerated(cardId, k) {
+  const bk = cardId + '_' + k;
+  state.billGenerated[bk] = !state.billGenerated[bk];
+  save(); renderCards();
+  toast(state.billGenerated[bk] ? '✅ Bill marked as generated — new transactions go to Next Bill' : 'Bill generation undone');
+}
+
+function renderCardSection(card, txns, thisBill, nextBill, thisAmt, nextAmt, billGen, k) {
+  const cardTotal = thisAmt + nextAmt;
+  const bd = card.billDate;
+  const dd = card.dueDate;
+  const metaParts = [];
+  if (bd) metaParts.push(`Bill: ${bd}${ord(bd)}`);
+  if (dd) metaParts.push(`Due: ${dd}${ord(dd)} next month`);
+
+  // Bill Generated button / badge
+  const billBtnHtml = billGen
+    ? `<button class="bill-gen-badge generated" onclick="toggleBillGenerated('${card.id}','${k}')" title="Click to undo">✅ Bill Generated</button>`
+    : `<button class="bill-gen-badge" onclick="toggleBillGenerated('${card.id}','${k}')" title="Mark bill as generated">📄 Generate Bill</button>`;
+
+  const billSections = [];
+
+  // This Bill section
+  const thisLabel = billGen ? 'This Bill (Closed)' : 'This Bill';
+  billSections.push(`
+    <div class="bill-section">
+      <div class="bill-header this-bill">
+        <span class="bill-label">${thisLabel}</span>
+        <span class="bill-total">${fmt(thisAmt)}</span>
+      </div>
+      ${thisBill.length ? renderPersonGroups(thisBill, card.id, k) : '<div class="empty-block">No transactions yet</div>'}
+    </div>`);
+
+  // Next Bill section — always show once bill is generated, otherwise only if there are next-bill txns
+  if (billGen || nextBill.length > 0) {
+    billSections.push(`
+      <div class="bill-section">
+        <div class="bill-header next-bill">
+          <span class="bill-label">Next Bill</span>
+          <span class="bill-total">${fmt(nextAmt)}</span>
+        </div>
+        ${nextBill.length ? renderPersonGroups(nextBill, card.id, k) : '<div class="empty-block" style="font-size:12px;color:var(--fg-3)">No new transactions yet — add one above</div>'}
+      </div>`);
+  }
+
+  const loadDefaultsBtn = (!txns.length && card.defaults && card.defaults.length)
+    ? `<button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="loadCardDefaults('${card.id}','${k}')">✨ Load Defaults</button>`
+    : '';
+
+  return `<div class="card-section">
+    <div class="card-header" style="border-left-color:${card.color||'#2563eb'}">
+      <div class="card-header-info">
+        <div class="card-name">${esc(card.name)}</div>
+        <div class="card-meta">${metaParts.join(' · ') || 'No bill date set'}</div>
+      </div>
+      ${billBtnHtml}
+      <div class="card-total">${fmt(cardTotal)}</div>
+      <div class="card-actions">
+        <button class="btn btn-ghost" onclick="openTxnModal('${card.id}')" title="Add transaction" style="font-size:16px;font-weight:600">+</button>
+      </div>
+    </div>
+    <div class="card-body">
+      ${billSections.join('')}
+      ${loadDefaultsBtn}
+    </div>
+  </div>`;
+}
+
+function renderPersonGroups(txns, cardId, k) {
+  const groups = {};
+  txns.forEach(t => { const p=t.spentBy||'Unknown'; (groups[p]=groups[p]||[]).push(t) });
+  return Object.entries(groups).map(([person, ts]) => {
+    const pTotal = sum(ts);
+    const rows   = ts.map(t => `
+      <div class="txn-row">
+        <div class="txn-amount">${fmt(t.amount)}</div>
+        <div class="txn-details">
+          <div class="txn-for">${esc(t.spentFor||'—')}</div>
+          <div class="txn-on">${esc(t.spentOn||'')}</div>
+        </div>
+        <div class="txn-date">${fmtDate(t.date)}</div>
+        <div class="txn-actions">
+          <button class="btn btn-ghost" onclick="openTxnModal('${cardId}','${k}','${t.id}')">✏️</button>
+          <button class="btn btn-danger" onclick="delTxn('${cardId}','${k}','${t.id}')">🗑</button>
+        </div>
+      </div>`).join('');
+    return `<div class="person-group">
+      <div class="person-group-header">
+        <span class="person-group-name">${esc(person)}</span>
+        <span class="person-group-total">${fmt(pTotal)}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return `${dt.getDate()}${ord(dt.getDate())} ${MN[dt.getMonth()].slice(0,3)}`;
+}
+
+function loadCardDefaults(cardId, k) {
+  const card = state.cards.find(c=>c.id===cardId);
+  if (!card || !card.defaults || !card.defaults.length) return;
+  if (!state.cardTxns[cardId]) state.cardTxns[cardId] = {};
+  state.cardTxns[cardId][k] = card.defaults.map(d => {
+    const day  = d.day||1;
+    const date = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    return { id:uid(), amount:d.amount, spentFor:d.spentFor, spentBy:d.spentBy, spentOn:d.spentOn, date };
+  });
+  save(); renderCards(); toast('Defaults loaded for this card');
+}
+
+function delTxn(cardId, k, id) {
+  state.cardTxns[cardId][k] = state.cardTxns[cardId][k].filter(t=>t.id!==id);
+  save(); renderCards(); toast('Transaction removed');
+}
+
+function deleteCard(cardId) {
+  state.cards = state.cards.filter(c=>c.id!==cardId);
+  delete state.cardTxns[cardId];
+  save(); renderCards(); renderCardManageList(); toast('Card deleted');
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEFAULTS tab
+// ─────────────────────────────────────────────────────────────
+function renderDefaults() {
+  // Monthly expenses list
+  const list = document.getElementById('defaultsList');
+  list.innerHTML = state.defaults.length
+    ? state.defaults.map(e => `
+        <div class="expense-item">
+          <div class="exp-info">
+            <div class="exp-name">${esc(e.name)}</div>
+            <div class="exp-meta">
+              <span class="cat-tag">${esc(e.category)}</span>
+              ${e.dueDate?`<span class="due-tag">Due ${e.dueDate}${ord(e.dueDate)}</span>`:''}
+            </div>
+          </div>
+          <div class="exp-amount">${fmt(e.amount)}</div>
+          <div class="exp-actions">
+            <button class="btn btn-ghost" onclick="openExpenseModal('default',null,'${e.id}')">✏️</button>
+            <button class="btn btn-danger" onclick="delDefault('${e.id}')">🗑</button>
+          </div>
+        </div>`).join('')
+    : '<div class="empty-block">No monthly defaults yet</div>';
+
+  // Credit cards list
+  renderCardManageList();
+
+  // People list
+  renderDefPeople();
+
+  // Cash sources list
+  renderDefCashSources();
+}
+
+function renderCardManageList() {
+  const el = document.getElementById('cardManageList');
+  if (!el) return;
+  if (!state.cards.length) {
+    el.innerHTML = '<div class="empty-block">No cards added yet. Click "+ Add Card" to start.</div>'; return;
+  }
+  el.innerHTML = state.cards.map(card => {
+    const defsCount = card.defaults?.length || 0;
+    const metaParts = [];
+    if (card.billDate) metaParts.push(`Bill: ${card.billDate}${ord(card.billDate)}`);
+    if (card.dueDate)  metaParts.push(`Due: ${card.dueDate}${ord(card.dueDate)}`);
+    if (defsCount)     metaParts.push(`${defsCount} default${defsCount>1?'s':''}`);
+    return `<div class="manage-item" style="border-left:4px solid ${card.color||'#2563eb'}">
+      <div class="manage-item-info">
+        <div class="manage-item-name">${esc(card.name)}</div>
+        <div class="manage-item-meta">${metaParts.join(' · ')||'No bill date set'}</div>
+      </div>
+      <div class="manage-actions">
+        <button class="btn btn-ghost" onclick="openCardDefsModal('${card.id}')" title="Card EMI defaults">📋</button>
+        <button class="btn btn-ghost" onclick="openCardModal('${card.id}')" title="Edit">✏️</button>
+        <button class="btn btn-danger" onclick="deleteCard('${card.id}')" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderDefPeople() {
+  const el = document.getElementById('defPeopleList');
+  if (!el) return;
+  el.innerHTML = state.people.length
+    ? state.people.map(p => `
+        <div class="people-item">
+          <span class="people-item-name">${esc(p)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deletePerson('${esc(p)}'); renderDefPeople()">🗑</button>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--fg-3);padding:6px">No people added yet</div>';
+}
+
+function addPersonFromDefs() {
+  const n = document.getElementById('defNewPerson').value.trim();
+  if (!n) return;
+  if (!state.people.includes(n)) { state.people.push(n); save() }
+  document.getElementById('defNewPerson').value = '';
+  renderDefPeople(); toast(`${n} added`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cash / Wallet Sources (Defaults)
+// ─────────────────────────────────────────────────────────────
+function renderDefCashSources() {
+  const el = document.getElementById('defCashSourceList');
+  if (!el) return;
+  el.innerHTML = state.cashSources.length
+    ? state.cashSources.map(s => `
+        <div class="people-item">
+          <span class="people-item-name">${esc(s)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteCashSource('${esc(s)}')">🗑</button>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--fg-3);padding:6px">No sources added yet. Add Pluxee, Slice, Cash etc.</div>';
+}
+
+function addCashSourceFromDefs() {
+  const n = document.getElementById('defNewCashSource').value.trim();
+  if (!n) return;
+  if (!state.cashSources.includes(n)) { state.cashSources.push(n); save() }
+  document.getElementById('defNewCashSource').value = '';
+  renderDefCashSources(); toast(`${n} added`);
+}
+
+function deleteCashSource(name) {
+  state.cashSources = state.cashSources.filter(s=>s!==name);
+  save(); renderDefCashSources(); toast(`${name} removed`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cash / Wallet Transactions
+// ─────────────────────────────────────────────────────────────
+function renderCashSection(cashTxns, k) {
+  const el = document.getElementById('cashSection');
+  if (!cashTxns.length && !state.cashSources.length && !state.cashTxns[k]?.length) {
+    el.hidden = true; return;
+  }
+  el.hidden = false;
+  const total = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+  document.getElementById('cashSectionTotal').textContent = fmt(total);
+  // Group by source
+  const groups = {};
+  cashTxns.forEach(t => { const s=t.source||'Cash'; (groups[s]=groups[s]||[]).push(t) });
+  let html = '';
+  if (Object.keys(groups).length) {
+    html = Object.entries(groups).map(([src, ts]) => {
+      const sTotal = ts.reduce((s,t)=>s+Number(t.amount||0),0);
+      const rows = ts.map(t => `
+        <div class="txn-row">
+          <div class="txn-amount">${fmt(t.amount)}</div>
+          <div class="txn-details">
+            <div class="txn-for">${esc(t.spentFor||'—')}</div>
+            <div class="txn-on" style="color:var(--fg-3)">${esc(t.spentBy||'')}${t.spentBy&&t.spentOn?' · ':''} ${esc(t.spentOn||'')}</div>
+          </div>
+          <div class="txn-date">${fmtDate(t.date)}</div>
+          <div class="txn-actions">
+            <button class="btn btn-ghost" onclick="openCashTxnModal('${t.id}')">✏️</button>
+            <button class="btn btn-danger" onclick="delCashTxn('${t.id}')">🗑</button>
+          </div>
+        </div>`).join('');
+      return `<div class="person-group">
+        <div class="person-group-header">
+          <span class="person-group-name">💵 ${esc(src)}</span>
+          <span class="person-group-total">${fmt(sTotal)}</span>
+        </div>${rows}</div>`;
+    }).join('');
+  } else {
+    html = '<div class="empty-block">No payments yet — click + to add</div>';
+  }
+  // Show meta: sources used or hint
+  const sourcesUsed = [...new Set(cashTxns.map(t=>t.source||'Cash'))].join(', ');
+  document.getElementById('cashSectionMeta').textContent = cashTxns.length ? sourcesUsed : 'Cash · Wallet payments';
+  document.getElementById('cashTxnsList').innerHTML = html;
+}
+
+function openCashTxnModal(txnId) {
+  const k = key(curYear, curMonth);
+  const txns = state.cashTxns[k] || [];
+  const t = txnId ? txns.find(x=>x.id===txnId) : null;
+  document.getElementById('cashTxnModalTitle').textContent = t ? 'Edit Cash Payment' : 'Add Cash Payment';
+  document.getElementById('cashTxnId').value = txnId||'';
+  document.getElementById('ctAmount').value   = t?.amount||'';
+  document.getElementById('ctSpentFor').value = t?.spentFor||'';
+  document.getElementById('ctDate').value     = t?.date||today();
+  // Populate source dropdown
+  const srcSel = document.getElementById('ctSource');
+  const sources = state.cashSources.length ? state.cashSources : ['Cash'];
+  srcSel.innerHTML = sources.map(s=>`<option ${t?.source===s?'selected':''}>${esc(s)}</option>`).join('');
+  if (t?.source) srcSel.value = t.source;
+  // Populate person dropdown
+  const pSel = document.getElementById('ctSpentBy');
+  pSel.innerHTML = state.people.map(p=>`<option ${t?.spentBy===p?'selected':''}>${esc(p)}</option>`).join('');
+  if (t?.spentBy) pSel.value = t.spentBy;
+  document.getElementById('ctAmount').classList.remove('err');
+  document.getElementById('ctSpentFor').classList.remove('err');
+  document.getElementById('cashTxnModal').hidden = false;
+  setTimeout(()=>document.getElementById('ctAmount').focus(), 60);
+}
+
+function closeCashTxnModal() { document.getElementById('cashTxnModal').hidden=true }
+
+function saveCashTxn() {
+  const txnId   = document.getElementById('cashTxnId').value;
+  const amount  = parseFloat(document.getElementById('ctAmount').value)||0;
+  const spentFor= document.getElementById('ctSpentFor').value.trim();
+  const spentBy = document.getElementById('ctSpentBy').value;
+  const source  = document.getElementById('ctSource').value;
+  const date    = document.getElementById('ctDate').value||today();
+  if (!amount)  { document.getElementById('ctAmount').classList.add('err'); document.getElementById('ctAmount').focus(); return }
+  if (!spentFor){ document.getElementById('ctSpentFor').classList.add('err'); document.getElementById('ctSpentFor').focus(); return }
+  const k = key(curYear, curMonth);
+  if (!state.cashTxns[k]) state.cashTxns[k] = [];
+  if (txnId) {
+    const t = state.cashTxns[k].find(x=>x.id===txnId);
+    if (t) Object.assign(t, {amount, spentFor, spentBy, source, date});
+  } else {
+    state.cashTxns[k].push({id:uid(), amount, spentFor, spentBy, source, date});
+  }
+  save(); closeCashTxnModal(); renderCards(); toast(txnId?'Updated ✓':'Added ✓');
+}
+
+function delCashTxn(txnId) {
+  const k = key(curYear, curMonth);
+  state.cashTxns[k] = (state.cashTxns[k]||[]).filter(t=>t.id!==txnId);
+  save(); renderCards(); toast('Payment removed');
+}
+
+function createCardDefaultsForMonth() {
+  const k = key(curYear, curMonth);
+  state.cards.forEach(card => {
+    if (!card.defaults || !card.defaults.length) return;
+    if (!state.cardTxns[card.id]) state.cardTxns[card.id] = {};
+    if (!state.cardTxns[card.id][k]) {
+      state.cardTxns[card.id][k] = card.defaults.map(d => {
+        const day  = d.day || 1;
+        const date = `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        return { id:uid(), amount:d.amount, spentFor:d.spentFor, spentBy:d.spentBy, spentOn:d.spentOn, date };
+      });
+    }
+  });
+  save(); renderCards(); toast(`Card defaults loaded for ${MN[curMonth]}!`);
+}
+
+function delDefault(id) {
+  state.defaults = state.defaults.filter(x=>x.id!==id);
+  save(); renderDefaults(); toast('Default removed');
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL: Monthly Expense
+// ─────────────────────────────────────────────────────────────
+function openExpenseModal(ctx, k, id) {
+  expEditCtx = ctx||'month'; expEditId = null;
+  let e=null, title='Add Expense';
+  if (id && ctx==='default') {
+    e=state.defaults.find(x=>x.id===id); expEditId=id; title='Edit Default';
+  } else if (id && k) {
+    e=state.months[k]?.find(x=>x.id===id); expEditId=id; title='Edit Expense';
+  } else if (ctx==='default') {
+    title='Add Default Expense';
+  }
+  document.getElementById('expModalTitle').textContent = title;
+  document.getElementById('eName').value    = e?.name||'';
+  document.getElementById('eAmount').value  = e?.amount||'';
+  document.getElementById('eCategory').value= e?.category||'Other';
+  document.getElementById('eDueDate').value = e?.dueDate||'';
+  document.getElementById('eName').classList.remove('err');
+  document.getElementById('expModal').hidden = false;
+  setTimeout(()=>document.getElementById('eName').focus(), 60);
+}
+
+function closeExpModal() { document.getElementById('expModal').hidden=true }
+
+function saveExpense() {
+  const name     = document.getElementById('eName').value.trim();
+  const amount   = parseFloat(document.getElementById('eAmount').value)||0;
+  const category = document.getElementById('eCategory').value;
+  const dueDate  = parseInt(document.getElementById('eDueDate').value)||'';
+  if (!name) { document.getElementById('eName').classList.add('err'); document.getElementById('eName').focus(); return }
+
+  if (expEditCtx==='default') {
+    if (expEditId) { const e=state.defaults.find(x=>x.id===expEditId); if(e) Object.assign(e,{name,amount,category,dueDate}) }
+    else state.defaults.push({id:uid(),name,amount,category,dueDate});
+    save(); renderDefaults();
+  } else {
+    const k=key(curYear,curMonth);
+    if (!state.months[k]) state.months[k]=[];
+    if (expEditId) { const e=state.months[k].find(x=>x.id===expEditId); if(e) Object.assign(e,{name,amount,category,dueDate}) }
+    else state.months[k].push({id:uid(),name,amount,category,dueDate,paid:false});
+    save(); renderMonth();
+  }
+  closeExpModal(); toast(expEditId?'Updated ✓':'Added ✓');
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL: CC Transaction
+// ─────────────────────────────────────────────────────────────
+function openTxnModal(cardId, k, txnId) {
+  const card = state.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  // Populate Spent By dropdown
+  const sel = document.getElementById('tSpentBy');
+  sel.innerHTML = state.people.map(p=>`<option>${esc(p)}</option>`).join('');
+
+  document.getElementById('txnCardId').value = cardId;
+  document.getElementById('txnId').value     = txnId||'';
+  let t=null, title='Add Transaction';
+  if (txnId && k) {
+    t = (state.cardTxns[cardId]||{})[k]?.find(x=>x.id===txnId);
+    title = 'Edit Transaction';
+  }
+  document.getElementById('txnModalTitle').textContent = title;
+  document.getElementById('tAmount').value  = t?.amount||'';
+  document.getElementById('tSpentFor').value= t?.spentFor||'';
+  document.getElementById('tSpentOn').value = t?.spentOn||'';
+  document.getElementById('tDate').value    = t?.date||today();
+  if (t?.spentBy) sel.value = t.spentBy;
+  document.getElementById('tAmount').classList.remove('err');
+  document.getElementById('tSpentFor').classList.remove('err');
+  document.getElementById('txnModal').hidden = false;
+  setTimeout(()=>document.getElementById('tAmount').focus(), 60);
+}
+
+function closeTxnModal() { document.getElementById('txnModal').hidden=true }
+
+function saveTxn() {
+  const cardId  = document.getElementById('txnCardId').value;
+  const txnId   = document.getElementById('txnId').value;
+  const amount  = parseFloat(document.getElementById('tAmount').value)||0;
+  const spentFor= document.getElementById('tSpentFor').value.trim();
+  const spentBy = document.getElementById('tSpentBy').value;
+  const spentOn = document.getElementById('tSpentOn').value.trim();
+  const date    = document.getElementById('tDate').value||today();
+  if (!amount) { document.getElementById('tAmount').classList.add('err'); document.getElementById('tAmount').focus(); return }
+  if (!spentFor){ document.getElementById('tSpentFor').classList.add('err'); document.getElementById('tSpentFor').focus(); return }
+  const k = key(curYear, curMonth);
+  if (!state.cardTxns[cardId]) state.cardTxns[cardId]={};
+  if (!state.cardTxns[cardId][k]) state.cardTxns[cardId][k]=[];
+  if (txnId) {
+    const t=state.cardTxns[cardId][k].find(x=>x.id===txnId);
+    if (t) Object.assign(t,{amount,spentFor,spentBy,spentOn,date});
+  } else {
+    // Auto-assign to Next Bill if bill already generated for this card-month
+    const isNextBill = !!state.billGenerated[cardId+'_'+k];
+    state.cardTxns[cardId][k].push({id:uid(),amount,spentFor,spentBy,spentOn,date,nextBill:isNextBill});
+  }
+  save(); closeTxnModal(); renderCards(); toast(txnId?'Updated ✓':'Added ✓');
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL: Card Form
+// ─────────────────────────────────────────────────────────────
+let selectedColor = COLORS[0];
+
+function openCardModal(cardId) {
+  const card = cardId ? state.cards.find(c=>c.id===cardId) : null;
+  document.getElementById('cardModalTitle').textContent = card ? 'Edit Card' : 'Add Card';
+  document.getElementById('cardEditId').value = card?.id||'';
+  document.getElementById('cName').value     = card?.name||'';
+  document.getElementById('cBillDate').value = card?.billDate||'';
+  document.getElementById('cDueDate').value  = card?.dueDate||'';
+  selectedColor = card?.color||COLORS[state.cards.length % COLORS.length];
+  renderColorPicker();
+  document.getElementById('cardModal').hidden = false;
+  setTimeout(()=>document.getElementById('cName').focus(), 60);
+}
+
+function closeCardModal() { document.getElementById('cardModal').hidden=true }
+
+function renderColorPicker() {
+  document.getElementById('colorPicker').innerHTML = COLORS.map(c =>
+    `<div class="color-swatch ${c===selectedColor?'selected':''}" style="background:${c}"
+      onclick="selectedColor='${c}'; renderColorPicker()"></div>`
+  ).join('');
+}
+
+function saveCard() {
+  const editId   = document.getElementById('cardEditId').value;
+  const name     = document.getElementById('cName').value.trim();
+  const billDate = parseInt(document.getElementById('cBillDate').value)||null;
+  const dueDate  = parseInt(document.getElementById('cDueDate').value)||null;
+  if (!name) { document.getElementById('cName').classList.add('err'); document.getElementById('cName').focus(); return }
+  if (editId) {
+    const c = state.cards.find(x=>x.id===editId);
+    if (c) Object.assign(c,{name,billDate,dueDate,color:selectedColor});
+  } else {
+    state.cards.push({id:uid(), name, billDate, dueDate, color:selectedColor, defaults:[]});
+  }
+  save(); closeCardModal(); renderCards(); renderCardManageList(); toast(editId?'Card updated':'Card added');
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL: People Manager
+// ─────────────────────────────────────────────────────────────
+function openPeopleModal() {
+  renderPeopleList();
+  document.getElementById('newPersonName').value='';
+  document.getElementById('peopleModal').hidden=false;
+}
+
+function renderPeopleList() {
+  document.getElementById('peopleList').innerHTML = state.people.length
+    ? state.people.map(p=>`
+        <div class="people-item">
+          <span class="people-item-name">${esc(p)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deletePerson('${esc(p)}')">🗑</button>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--fg-3);padding:8px">No people added yet</div>';
+}
+
+function addPerson() {
+  const n = document.getElementById('newPersonName').value.trim();
+  if (!n) return;
+  if (!state.people.includes(n)) { state.people.push(n); save() }
+  document.getElementById('newPersonName').value='';
+  renderPeopleList(); toast(`${n} added`);
+}
+
+function deletePerson(name) {
+  state.people = state.people.filter(p=>p!==name);
+  save(); renderPeopleList(); toast('Removed');
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL: Card Defaults
+// ─────────────────────────────────────────────────────────────
+function openCardDefsModal(cardId) {
+  activeCardDefId = cardId;
+  const card = state.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  document.getElementById('cardDefsTitle').textContent = `${card.name} – Defaults`;
+  // Populate people dropdown
+  const sel = document.getElementById('cdSpentBy');
+  sel.innerHTML = state.people.map(p=>`<option>${esc(p)}</option>`).join('');
+  // Clear form
+  document.getElementById('cdAmount').value='';
+  document.getElementById('cdSpentFor').value='';
+  document.getElementById('cdSpentOn').value='';
+  document.getElementById('cdDay').value='';
+  renderCardDefsList(card);
+  document.getElementById('cardDefsModal').hidden=false;
+}
+
+function closeCardDefsModal() { document.getElementById('cardDefsModal').hidden=true; activeCardDefId=null }
+
+function renderCardDefsList(card) {
+  const list = document.getElementById('cardDefsList');
+  if (!card.defaults||!card.defaults.length) {
+    list.innerHTML='<div class="empty-block" style="font-size:12px;color:var(--fg-3)">No defaults yet for this card</div>'; return;
+  }
+  list.innerHTML = card.defaults.map(d=>`
+    <div class="expense-item" style="font-size:13px">
+      <div class="exp-info">
+        <div class="exp-name">${esc(d.spentFor)} <span style="color:var(--fg-3)">via ${esc(d.spentOn||'—')}</span></div>
+        <div class="exp-meta">
+          <span class="cat-tag">${esc(d.spentBy||'—')}</span>
+          ${d.day?`<span class="due-tag">Day ${d.day}</span>`:''}
+        </div>
+      </div>
+      <div class="exp-amount">${fmt(d.amount)}</div>
+      <div class="exp-actions">
+        <button class="btn btn-danger" onclick="delCardDefault('${d.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function addCardDefault() {
+  const card = state.cards.find(c=>c.id===activeCardDefId);
+  if (!card) return;
+  const amount  = parseFloat(document.getElementById('cdAmount').value)||0;
+  const spentFor= document.getElementById('cdSpentFor').value.trim();
+  const spentBy = document.getElementById('cdSpentBy').value;
+  const spentOn = document.getElementById('cdSpentOn').value.trim();
+  const day     = parseInt(document.getElementById('cdDay').value)||1;
+  if (!amount||!spentFor) { toast('Amount and Spent For are required'); return }
+  if (!card.defaults) card.defaults=[];
+  card.defaults.push({id:uid(), amount, spentFor, spentBy, spentOn, day});
+  save();
+  document.getElementById('cdAmount').value='';
+  document.getElementById('cdSpentFor').value='';
+  document.getElementById('cdSpentOn').value='';
+  document.getElementById('cdDay').value='';
+  renderCardDefsList(card); toast('Default added');
+}
+
+function delCardDefault(defId) {
+  const card = state.cards.find(c=>c.id===activeCardDefId);
+  if (!card) return;
+  card.defaults = card.defaults.filter(d=>d.id!==defId);
+  save(); renderCardDefsList(card); toast('Default removed');
+}
+
+// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// Clear All
+// ─────────────────────────────────────────────────────────────
+function askClearAll() {
+  switchTab('defaults'); // take user to defaults tab so they see the confirm strip
+  document.getElementById('clearConfirm').hidden = false;
+  document.getElementById('clearConfirm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function confirmClearAll() {
+  state = { months:{}, defaults:[], cards:[], cardTxns:{}, people:[], billGenerated:{}, cashTxns:{}, cashSources:[], lbEntries:[] };
+  save();
+  document.getElementById('clearConfirm').hidden = true;
+  renderMonth(); renderCards(); renderDefaults();
+  toast('All data cleared');
+}
+
+// ─────────────────────────────────────────────────────────────
+// LB MANAGER
+// ─────────────────────────────────────────────────────────────
+let lbFilter = 'all'; // 'all' | 'pending' | 'settled'
+let lbModalType = 'lent';
+
+function setLbFilter(f) {
+  lbFilter = f;
+  ['all','pending','settled'].forEach(x => {
+    const id = 'lbPill' + x.charAt(0).toUpperCase() + x.slice(1);
+    document.getElementById(id).classList.toggle('active', x === f);
+  });
+  renderLb();
+}
+
+function lbRepaid(e) { return (e.repayments||[]).reduce((s,r)=>s+Number(r.amount||0),0) }
+function lbRemaining(e) { return Math.max(0, Number(e.amount||0) - lbRepaid(e)) }
+function lbIsSettled(e) { return e.settled || lbRemaining(e) === 0 }
+
+function renderLb() {
+  const entries = state.lbEntries || [];
+
+  // Summaries — use remaining balance for pending entries
+  const totalLent     = entries.filter(e=>e.type==='lent'    &&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+  const totalBorrowed = entries.filter(e=>e.type==='borrowed'&&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+  const net = totalLent - totalBorrowed;
+  document.getElementById('lbTotalLent').textContent     = fmt(totalLent);
+  document.getElementById('lbTotalBorrowed').textContent = fmt(totalBorrowed);
+  const netEl = document.getElementById('lbNet');
+  netEl.textContent = (net >= 0 ? '+' : '') + fmt(Math.abs(net));
+  netEl.style.color = net > 0 ? 'var(--blue)' : net < 0 ? 'var(--warn)' : 'var(--fg-2)';
+
+  // Filter
+  const visible = entries.filter(e => {
+    if (lbFilter === 'pending') return !lbIsSettled(e);
+    if (lbFilter === 'settled') return  lbIsSettled(e);
+    return true;
+  });
+
+  const el = document.getElementById('lbList');
+  if (!visible.length) {
+    el.innerHTML = `<div class="empty-block">${entries.length ? 'Nothing to show for this filter' : 'No entries yet — add using the buttons above'}</div>`;
+    return;
+  }
+
+  // Group by person
+  const byPerson = {};
+  visible.forEach(e => { const p=e.person||'Unknown'; (byPerson[p]=byPerson[p]||[]).push(e) });
+
+  el.innerHTML = Object.entries(byPerson).map(([person, es]) => {
+    const pLentRem = es.filter(e=>e.type==='lent'    &&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+    const pBorRem  = es.filter(e=>e.type==='borrowed'&&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+    const pNet = pLentRem - pBorRem;
+    const netStr   = pNet === 0 ? 'All settled up'
+                   : pNet > 0  ? `They owe you ${fmt(pNet)}`
+                   : `You owe ${fmt(Math.abs(pNet))}`;
+    const netColor = pNet > 0 ? 'var(--blue)' : pNet < 0 ? 'var(--warn)' : 'var(--accent)';
+
+    const rows = es.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e => {
+      const isLent   = e.type === 'lent';
+      const repaid   = lbRepaid(e);
+      const remaining= lbRemaining(e);
+      const original = Number(e.amount||0);
+      const settled  = lbIsSettled(e);
+      const pct      = original > 0 ? Math.min(100, repaid/original*100) : 0;
+
+      const badge = isLent
+        ? `<span style="background:var(--blue-bg);color:var(--blue);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">💸 Lent</span>`
+        : `<span style="background:var(--warn-bg);color:var(--warn);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">🤲 Borrowed</span>`;
+      const settledBadge = settled
+        ? `<span style="background:var(--accent-bg);color:var(--accent);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">✅ Settled</span>` : '';
+      const duePart = e.dueDate ? `<span style="color:var(--fg-3)"> · Due ${fmtDate(e.dueDate)}</span>` : '';
+
+      // Progress bar (only when partially repaid)
+      const progressBar = repaid > 0 && !settled ? `
+        <div style="margin-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-3);margin-bottom:3px">
+            <span>Repaid ${fmt(repaid)} of ${fmt(original)}</span>
+            <span style="color:${remaining>0?'var(--warn)':'var(--accent)'};font-weight:600">Remaining: ${fmt(remaining)}</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;transition:width .3s"></div>
+          </div>
+        </div>` : '';
+
+      // Repayment history rows
+      const reps = (e.repayments||[]);
+      const repHistory = reps.length ? `
+        <div style="margin-top:6px;padding:8px;background:var(--bg-muted);border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--fg-3);font-weight:600;margin-bottom:5px">REPAYMENTS</div>
+          ${reps.map(r=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:12px;font-weight:600;color:var(--accent)">${fmt(r.amount)}</span>
+              <span style="font-size:12px;color:var(--fg-2);flex:1">${esc(r.note||'—')}</span>
+              <span style="font-size:11px;color:var(--fg-3)">${fmtDate(r.date)}</span>
+              <button class="btn btn-danger" style="padding:1px 6px;font-size:11px" onclick="delRepayment('${e.id}','${r.id}')">🗑</button>
+            </div>`).join('')}
+        </div>` : '';
+
+      return `
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);${settled?'opacity:0.6':''}">
+          <div style="display:flex;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+                ${badge}${settledBadge}
+                <span style="font-size:14px;font-weight:700;color:var(--fg)">${fmt(original)}</span>
+              </div>
+              <div style="font-size:13px;color:var(--fg-2)">${esc(e.reason||'—')}${duePart}</div>
+              <div style="font-size:12px;color:var(--fg-3);margin-top:2px">${fmtDate(e.date)}</div>
+              ${progressBar}
+              ${repHistory}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
+              ${!settled ? `<button class="btn btn-outline btn-sm" onclick="openRepaymentModal('${e.id}')" style="white-space:nowrap;font-size:12px">+ Repayment</button>` : ''}
+              <div style="display:flex;gap:4px">
+                ${!settled ? `<button class="btn btn-ghost" onclick="settleLb('${e.id}')" title="Mark fully settled" style="font-size:14px">✅</button>` : `<button class="btn btn-ghost" onclick="unsettleLb('${e.id}')" title="Undo settle" style="font-size:11px;color:var(--fg-3)">↩</button>`}
+                <button class="btn btn-ghost" onclick="openLbModal(null,'${e.id}')">✏️</button>
+                <button class="btn btn-danger" onclick="delLbEntry('${e.id}')">🗑</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="card-section" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600;font-size:14px">${esc(person)}</div>
+        <div style="font-size:12px;font-weight:600;color:${netColor}">${netStr}</div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function openLbModal(type, entryId) {
+  const e = entryId ? (state.lbEntries||[]).find(x=>x.id===entryId) : null;
+  const t = e ? e.type : (type || 'lent');
+  document.getElementById('lbEntryId').value = entryId||'';
+  document.getElementById('lbAmount').value  = e?.amount||'';
+  document.getElementById('lbPerson').value  = e?.person||'';
+  document.getElementById('lbReason').value  = e?.reason||'';
+  document.getElementById('lbDate').value    = e?.date||today();
+  document.getElementById('lbDueDate').value = e?.dueDate||'';
+  // Populate datalist from all known people + lb persons
+  const allNames = new Set([...state.people, ...(state.lbEntries||[]).map(x=>x.person).filter(Boolean)]);
+  document.getElementById('lbPersonList').innerHTML = [...allNames].map(n=>`<option value="${esc(n)}">`).join('');
+  document.getElementById('lbAmount').classList.remove('err');
+  document.getElementById('lbPerson').classList.remove('err');
+  setLbType(t);
+  document.getElementById('lbModal').hidden = false;
+  setTimeout(()=>document.getElementById('lbAmount').focus(), 60);
+}
+
+function setLbType(t) {
+  lbModalType = t;
+  const lentBtn = document.getElementById('lbTypeLent');
+  const borBtn  = document.getElementById('lbTypeBorrowed');
+  lentBtn.className = 'btn ' + (t==='lent'     ? 'btn-primary' : 'btn-outline');
+  borBtn.className  = 'btn ' + (t==='borrowed' ? 'btn-primary' : 'btn-outline');
+  document.getElementById('lbPersonLabel').textContent = t==='lent' ? 'To (Person)' : 'From (Person)';
+  document.getElementById('lbModalTitle').textContent  = t==='lent' ? '💸 I Lent Money' : '🤲 I Borrowed Money';
+}
+
+function closeLbModal() { document.getElementById('lbModal').hidden=true }
+
+function saveLbEntry() {
+  const entryId = document.getElementById('lbEntryId').value;
+  const amount  = parseFloat(document.getElementById('lbAmount').value)||0;
+  const person  = document.getElementById('lbPerson').value.trim();
+  const reason  = document.getElementById('lbReason').value.trim();
+  const date    = document.getElementById('lbDate').value||today();
+  const dueDate = document.getElementById('lbDueDate').value||'';
+  if (!amount) { document.getElementById('lbAmount').classList.add('err'); document.getElementById('lbAmount').focus(); return }
+  if (!person) { document.getElementById('lbPerson').classList.add('err'); document.getElementById('lbPerson').focus(); return }
+  if (!state.lbEntries) state.lbEntries = [];
+  if (entryId) {
+    const e = state.lbEntries.find(x=>x.id===entryId);
+    if (e) Object.assign(e, {type:lbModalType, amount, person, reason, date, dueDate}); // repayments preserved
+  } else {
+    state.lbEntries.push({id:uid(), type:lbModalType, person, amount, reason, date, dueDate, settled:false, repayments:[]});
+  }
+  save(); closeLbModal(); renderLb(); toast(entryId?'Updated ✓':'Added ✓');
+}
+
+function settleLb(id) {
+  const e = (state.lbEntries||[]).find(x=>x.id===id);
+  if (e) { e.settled = true; save(); renderLb(); toast('Marked as settled ✅'); }
+}
+
+function unsettleLb(id) {
+  const e = (state.lbEntries||[]).find(x=>x.id===id);
+  if (e) { e.settled = false; save(); renderLb(); toast('Marked as pending'); }
+}
+
+function delLbEntry(id) {
+  state.lbEntries = (state.lbEntries||[]).filter(x=>x.id!==id);
+  save(); renderLb(); toast('Entry deleted');
+}
+
+function openRepaymentModal(entryId) {
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  const repaid    = lbRepaid(e);
+  const remaining = lbRemaining(e);
+  const isLent    = e.type === 'lent';
+  document.getElementById('repEntryId').value = entryId;
+  document.getElementById('repAmount').value  = '';
+  document.getElementById('repNote').value    = '';
+  document.getElementById('repDate').value    = today();
+  document.getElementById('repaymentModalTitle').textContent = isLent ? '💰 Record Money Received' : '💰 Record Money Paid Back';
+  document.getElementById('repSummary').innerHTML =
+    `<strong>${esc(e.person)}</strong> · ${esc(e.reason||'—')}<br>
+     Original: <strong>${fmt(e.amount)}</strong> &nbsp;|&nbsp;
+     Repaid so far: <strong style="color:var(--accent)">${fmt(repaid)}</strong> &nbsp;|&nbsp;
+     Remaining: <strong style="color:var(--warn)">${fmt(remaining)}</strong>`;
+  document.getElementById('repAmount').classList.remove('err');
+  document.getElementById('repaymentModal').hidden = false;
+  setTimeout(()=>document.getElementById('repAmount').focus(), 60);
+}
+
+function closeRepaymentModal() { document.getElementById('repaymentModal').hidden=true }
+
+function saveRepayment() {
+  const entryId = document.getElementById('repEntryId').value;
+  const amount  = parseFloat(document.getElementById('repAmount').value)||0;
+  const note    = document.getElementById('repNote').value.trim();
+  const date    = document.getElementById('repDate').value||today();
+  if (!amount) { document.getElementById('repAmount').classList.add('err'); document.getElementById('repAmount').focus(); return }
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  if (!e.repayments) e.repayments = [];
+  e.repayments.push({id:uid(), amount, note, date});
+  // Auto-settle if fully repaid
+  if (lbRemaining(e) === 0) {
+    e.settled = true;
+    toast('Fully repaid — marked as settled ✅');
+  } else {
+    toast(`Repayment of ${fmt(amount)} recorded · ${fmt(lbRemaining(e))} remaining`);
+  }
+  save(); closeRepaymentModal(); renderLb();
+}
+
+function delRepayment(entryId, repId) {
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  e.repayments = (e.repayments||[]).filter(r=>r.id!==repId);
+  // Un-settle if amount comes back above zero
+  if (lbRemaining(e) > 0) e.settled = false;
+  save(); renderLb(); toast('Repayment removed');
+}
+
+// Share Modal
+// ─────────────────────────────────────────────────────────────
+function openShareModal() {
+  const k = key(curYear, curMonth);
+  const text = generateShareText(k);
+  const title = ccFilter ? `${ccFilter}'s CC Summary` : 'Full CC Summary';
+  const sub = `${MN[curMonth]} ${curYear}${ccFilter ? ' · Filtered: ' + ccFilter : ' · All people'}`;
+  document.getElementById('shareModalTitle').textContent = title;
+  document.getElementById('shareModalSub').textContent = sub;
+  document.getElementById('shareTextarea').value = text;
+  document.getElementById('shareModal').hidden = false;
+}
+
+function generateShareText(k) {
+  const lines = [];
+  const header = ccFilter ? `${ccFilter}'s Expenses` : 'Expense Summary';
+  lines.push(`📊 ${header}`);
+  lines.push(`📅 ${MN[curMonth]} ${curYear}`);
+  if (ccFilter) lines.push(`👤 ${ccFilter}`);
+  lines.push('');
+  let grandThis = 0, grandNext = 0, grandCash = 0;
+  state.cards.forEach(card => {
+    const allTxns = (state.cardTxns[card.id]||{})[k] || [];
+    const txns = ccFilter ? allTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allTxns;
+    if (!txns.length) return;
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push(`💳 ${card.name}`);
+    const thisBill = txns.filter(t => !t.nextBill);
+    const nextBill = txns.filter(t =>  t.nextBill);
+    if (thisBill.length) {
+      lines.push('📋 This Bill');
+      thisBill.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        const on  = t.spentOn || '';
+        lines.push(`  ${amt} ${sf} ${by} ${on}`);
+      });
+      const thisAmt = thisBill.reduce((s,t)=>s+(+t.amount||0),0);
+      grandThis += thisAmt;
+      lines.push(`  ─ Total: ${fmt(thisAmt)}`);
+    }
+    if (nextBill.length) {
+      lines.push('📋 Next Bill');
+      nextBill.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        const on  = t.spentOn || '';
+        lines.push(`  ${amt} ${sf} ${by} ${on}`);
+      });
+      const nextAmt = nextBill.reduce((s,t)=>s+(+t.amount||0),0);
+      grandNext += nextAmt;
+      lines.push(`  ─ Total: ${fmt(nextAmt)}`);
+    }
+    lines.push('');
+  });
+  // Cash / Wallet section
+  const allCashTxns = state.cashTxns[k] || [];
+  const cashTxns = ccFilter ? allCashTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allCashTxns;
+  if (cashTxns.length) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('💵 Cash / Wallet Payments');
+    // Group by source
+    const groups = {};
+    cashTxns.forEach(t => { const s=t.source||'Cash'; (groups[s]=groups[s]||[]).push(t) });
+    Object.entries(groups).forEach(([src, ts]) => {
+      lines.push(`  [${src}]`);
+      ts.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        lines.push(`  ${amt} ${sf} ${by}`);
+      });
+      const srcAmt = ts.reduce((s,t)=>s+(+t.amount||0),0);
+      grandCash += srcAmt;
+      lines.push(`  ─ ${src} Total: ${fmt(srcAmt)}`);
+    });
+    lines.push('');
+  }
+  lines.push('════════════════════════');
+  if (grandNext > 0) {
+    lines.push(`CC This Bill : ${fmt(grandThis)}`);
+    lines.push(`CC Next Bill : ${fmt(grandNext)}`);
+  } else if (grandThis > 0) {
+    lines.push(`CC Total     : ${fmt(grandThis)}`);
+  }
+  if (grandCash > 0) lines.push(`Cash / Wallet: ${fmt(grandCash)}`);
+  lines.push(`Grand Total  : ${fmt(grandThis + grandNext + grandCash)}`);
+  return lines.join('\n');
+}
+
+function copyShareText() {
+  const ta = document.getElementById('shareTextarea');
+  try {
+    navigator.clipboard.writeText(ta.value)
+      .then(() => toast('Copied to clipboard!'))
+      .catch(() => { ta.select(); toast('Select all and copy manually'); });
+  } catch(e) { ta.select(); toast('Select all and copy manually'); }
+}
+
+function whatsappShare() {
+  const text = document.getElementById('shareTextarea').value;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+}
+
+// Toast, Theme, Keyboard
+// ─────────────────────────────────────────────────────────────
+let _tt;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt); _tt=setTimeout(()=>el.classList.remove('show'),2400);
+}
+
+document.getElementById('themeBtn').onclick = () => {
+  const cur=document.documentElement.getAttribute('data-theme');
+  document.documentElement.setAttribute('data-theme', cur==='dark'?'light':'dark');
+};
+
+document.addEventListener('keydown', ev => {
+  if (ev.key==='Escape') {
+    ['expModal','txnModal','cardModal','peopleModal','cardDefsModal'].forEach(id=>{
+      document.getElementById(id).hidden=true;
+    });
+  }
+  if (ev.key==='Enter') {
+    if (!document.getElementById('expModal').hidden    && ev.target.tagName!=='SELECT') { saveExpense(); return }
+    if (!document.getElementById('txnModal').hidden    && ev.target.tagName!=='SELECT') { saveTxn(); return }
+    if (!document.getElementById('cardModal').hidden   && ev.target.tagName!=='SELECT') { saveCard(); return }
+    if (!document.getElementById('peopleModal').hidden && ev.target.id==='newPersonName') { addPerson(); return }
+    if (!document.getElementById('cardDefsModal').hidden && ev.target.tagName!=='SELECT') { addCardDefault() }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Firebase Configuration — REPLACE THESE WITH YOUR OWN VALUES
+// from https://console.firebase.google.com → Project Settings
+// ─────────────────────────────────────────────────────────────
+/*
+  FIREBASE SECURITY RULES (paste in Realtime Database → Rules):
+
+  {
+    "rules": {
+      "userData": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || root.child('shares/' + $uid + '/grantedTo/' + auth.uid).exists())",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      },
+      "shares": {
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      },
+      "profiles": {
+        "$uid": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    }
+  }
+*/
+
+const FIREBASE_CONFIG = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:         "YOUR_PROJECT",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.database();
+
+// ─────────────────────────────────────────────────────────────
+// Firebase state
+// ─────────────────────────────────────────────────────────────
+let myUid = null;
+let myEmail = null;
+let myDisplayName = null;
+let currentWorkspaceUid = null;
+let isReadOnly = false;
+let workspaceListener = null; // Firebase .on() detach function
+let sharedWorkspaces = {}; // { uid: { displayName, email } }
+
+// ─────────────────────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────────────────────
+function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(provider).catch(e => toast('Sign-in failed: ' + e.message));
+}
+
+function confirmSignOut() {
+  if (confirm('Sign out?')) fbAuth.signOut();
+}
+
+fbAuth.onAuthStateChanged(async user => {
+  if (user) {
+    myUid = user.uid;
+    myEmail = user.email;
+    myDisplayName = user.displayName || user.email;
+    document.getElementById('loginScreen').hidden = true;
+    document.getElementById('wsDropdown').hidden = false;
+    document.getElementById('userAvatar').hidden = false;
+    // Save profile so others can look us up
+    await fbDb.ref('profiles/' + myUid).set({ email: myEmail, displayName: myDisplayName });
+    // Update avatar
+    const av = document.getElementById('userAvatar');
+    if (user.photoURL) {
+      av.innerHTML = `<img src="${user.photoURL}" alt="">`;
+    } else {
+      av.textContent = (myDisplayName || '?')[0].toUpperCase();
+    }
+    // Load shared workspaces list then boot into own workspace
+    await loadSharedWorkspacesList();
+    switchWorkspace(myUid);
+  } else {
+    myUid = null;
+    document.getElementById('loginScreen').hidden = false;
+    document.getElementById('wsDropdown').hidden = true;
+    document.getElementById('userAvatar').hidden = true;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Workspace management
+// ─────────────────────────────────────────────────────────────
+async function loadSharedWorkspacesList() {
+  const snap = await fbDb.ref('shares/' + myUid + '/grantedTo').get();
+  sharedWorkspaces = {};
+  if (snap.exists()) {
+    const uids = Object.keys(snap.val() || {});
+    for (const uid of uids) {
+      // This finds people WHO gave ME access — wait, we need the reverse:
+      // people who granted access to me are stored under their own shares node.
+    }
+  }
+  // Find workspaces where someone granted access to myEmail/myUid:
+  // We'll query profiles to resolve, but for simplicity store grantedTo under owner's uid
+  // and scan; better: store a reverse index under /receivedAccess/{myUid}/{ownerUid}
+  const myAccessSnap = await fbDb.ref('receivedAccess/' + myUid).get();
+  sharedWorkspaces = {};
+  if (myAccessSnap.exists()) {
+    const ownerUids = Object.keys(myAccessSnap.val() || {});
+    for (const oUid of ownerUids) {
+      const profileSnap = await fbDb.ref('profiles/' + oUid).get();
+      if (profileSnap.exists()) {
+        sharedWorkspaces[oUid] = profileSnap.val();
+      }
+    }
+  }
+}
+
+function switchWorkspace(uid) {
+  currentWorkspaceUid = uid;
+  isReadOnly = (uid !== myUid);
+  document.body.classList.toggle('read-only', isReadOnly);
+  // Read-only banner
+  const banner = document.getElementById('readonlyBanner');
+  banner.hidden = !isReadOnly;
+  if (isReadOnly) {
+    const name = (sharedWorkspaces[uid] || {}).displayName || uid;
+    document.getElementById('readonlyBannerText').textContent = `Viewing ${name}'s workspace (read-only)`;
+  }
+  // Update workspace button label
+  const wsLabel = isReadOnly
+    ? ((sharedWorkspaces[uid] || {}).displayName || 'Shared') + ' 👁 ▾'
+    : '🏠 My Data ▾';
+  document.getElementById('wsBtn').textContent = wsLabel;
+  // Close menu
+  document.getElementById('wsMenu').hidden = true;
+  // Detach old listener
+  if (workspaceListener) { workspaceListener(); workspaceListener = null; }
+  // Attach new listener
+  const ref = fbDb.ref('userData/' + uid);
+  workspaceListener = () => ref.off('value');
+  ref.on('value', snap => {
+    if (snap.exists()) {
+      state = snap.val();
+      applyMigration();
+    } else {
+      state = { months:{}, defaults:[], cards:[], cardTxns:{}, people:[], billGenerated:{}, cashTxns:{}, cashSources:[], lbEntries:[] };
+      if (!isReadOnly) {
+        state.people = [myDisplayName || 'Me'];
+        save();
+      }
+    }
+    renderAll();
+  }, err => {
+    toast('Access denied: ' + err.message);
+    switchWorkspace(myUid);
+  });
+}
+
+function toggleWorkspaceMenu() {
+  const menu = document.getElementById('wsMenu');
+  menu.hidden = !menu.hidden;
+  if (!menu.hidden) renderWorkspaceMenuItems();
+}
+
+function renderWorkspaceMenuItems() {
+  const menu = document.getElementById('wsMenu');
+  let html = `<div class="ws-menu-section">My Workspace</div>
+    <div class="ws-menu-item ${currentWorkspaceUid===myUid?'active-ws':''}" onclick="switchWorkspace('${myUid}')">
+      🏠 My Data ${currentWorkspaceUid===myUid?'✓':''}
+    </div>`;
+  const keys = Object.keys(sharedWorkspaces);
+  if (keys.length) {
+    html += `<hr class="ws-menu-sep"><div class="ws-menu-section">Shared with me</div>`;
+    keys.forEach(uid => {
+      const info = sharedWorkspaces[uid];
+      html += `<div class="ws-menu-item ${currentWorkspaceUid===uid?'active-ws':''}" onclick="switchWorkspace('${uid}')">
+        👤 ${info.displayName||info.email} ${currentWorkspaceUid===uid?'✓':''}
+      </div>`;
+    });
+  }
+  html += `<hr class="ws-menu-sep">
+    <div class="ws-menu-item" onclick="openShareAccessModal()">⚙️ Manage Access Sharing</div>
+    <div class="ws-menu-item" style="color:var(--danger)" onclick="confirmSignOut()">🚪 Sign Out</div>`;
+  menu.innerHTML = html;
+}
+
+// Close workspace menu on outside click
+document.addEventListener('click', e => {
+  const dd = document.getElementById('wsDropdown');
+  if (dd && !dd.contains(e.target)) document.getElementById('wsMenu').hidden = true;
+});
+
+// ─────────────────────────────────────────────────────────────
+// Share Access modal
+// ─────────────────────────────────────────────────────────────
+async function openShareAccessModal() {
+  document.getElementById('wsMenu').hidden = true;
+  document.getElementById('shareAccessModal').hidden = false;
+  renderShareAccessList();
+}
+
+function closeShareAccessModal() {
+  document.getElementById('shareAccessModal').hidden = true;
+}
+
+async function renderShareAccessList() {
+  const list = document.getElementById('shareAccessList');
+  list.innerHTML = '<div style="color:var(--fg-3);font-size:13px">Loading…</div>';
+  const snap = await fbDb.ref('shares/' + myUid + '/grantedTo').get();
+  if (!snap.exists() || !Object.keys(snap.val()||{}).length) {
+    list.innerHTML = '<div style="color:var(--fg-3);font-size:13px;padding:8px 0">No one has access yet.</div>';
+    return;
+  }
+  const grantees = snap.val();
+  let html = '';
+  for (const [uid, info] of Object.entries(grantees)) {
+    html += `<div class="share-row">
+      <div class="share-email">${info.email||uid}</div>
+      <span class="share-badge">read-only</span>
+      <button class="btn btn-sm btn-danger" onclick="revokeAccess('${uid}')">Revoke</button>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+async function grantAccess() {
+  const emailInput = document.getElementById('grantEmailInput');
+  const email = (emailInput.value||'').trim().toLowerCase();
+  if (!email) return;
+  // Look up uid by email from profiles
+  const profilesSnap = await fbDb.ref('profiles').get();
+  if (!profilesSnap.exists()) { toast('User not found'); return; }
+  let targetUid = null, targetInfo = null;
+  profilesSnap.forEach(child => {
+    if ((child.val().email||'').toLowerCase() === email) {
+      targetUid = child.key; targetInfo = child.val();
+    }
+  });
+  if (!targetUid) { toast('User not found — they must sign in to MMM first'); return; }
+  if (targetUid === myUid) { toast('Cannot grant access to yourself'); return; }
+  await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).set({ email: targetInfo.email, displayName: targetInfo.displayName||'' });
+  await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).set(true);
+  emailInput.value = '';
+  toast('Access granted to ' + email);
+  renderShareAccessList();
+}
+
+async function revokeAccess(targetUid) {
+  await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).remove();
+  await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).remove();
+  toast('Access revoked');
+  renderShareAccessList();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Override save() to write to Firebase (not just localStorage)
+// ─────────────────────────────────────────────────────────────
+function save() {
+  if (isReadOnly) return; // never write to someone else's data
+  try { localStorage.setItem('mmm_v1', JSON.stringify(state)); } catch(e) {}
+  if (myUid) {
+    fbDb.ref('userData/' + myUid).set(state).catch(e => console.error('Firebase save error:', e));
+  }
+}
+
+function applyMigration() {
+  if (!state.months)        state.months        = {};
+  if (!state.defaults)      state.defaults      = [];
+  if (!state.cards)         state.cards         = [];
+  if (!state.cardTxns)      state.cardTxns      = {};
+  if (!state.people)        state.people        = [];
+  if (!state.billGenerated) state.billGenerated = {};
+  if (!state.cashTxns)      state.cashTxns      = {};
+  if (!state.cashSources)   state.cashSources   = [];
+  if (!state.lbEntries)     state.lbEntries     = [];
+}
+
+function renderAll() {
+  const tabs = ['month','cards','lb','defaults'];
+  const active = tabs.find(t => !document.getElementById('view'+t[0].toUpperCase()+t.slice(1)).hidden) || 'month';
+  if (active==='month')    renderMonth();
+  if (active==='cards')    renderCards();
+  if (active==='lb')       renderLb();
+  if (active==='defaults') renderDefaults();
+}
+
+init();
+</script>
+
+<!-- Share Access Modal -->
+<div class="modal-backdrop" id="shareAccessModal" hidden onclick="if(event.target===this)closeShareAccessModal()">
+  <div class="modal">
+    <div class="modal-title">⚙️ Manage Access Sharing</div>
+    <p style="font-size:13px;color:var(--fg-2);margin-bottom:16px">Give read-only access to your data. Enter the email of another MMM user (they must have signed in at least once).</p>
+    <div class="form-group">
+      <label class="form-label">Grant access to email</label>
+      <div class="add-person-row">
+        <input class="form-input" id="grantEmailInput" type="email" placeholder="someone@example.com">
+        <button class="btn btn-primary" onclick="grantAccess()">Grant</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Currently shared with</label>
+      <div id="shareAccessList"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeShareAccessModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
