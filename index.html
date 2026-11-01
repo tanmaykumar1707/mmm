@@ -270,6 +270,7 @@
   <div class="tabs">
     <button class="tab-btn active" id="tabMonth"    onclick="switchTab('month')">📅 This Month</button>
     <button class="tab-btn"        id="tabCards"    onclick="switchTab('cards')">💳 Credit Cards</button>
+    <button class="tab-btn"        id="tabLb"       onclick="switchTab('lb')">🤝 LB</button>
     <button class="tab-btn"        id="tabDefaults" onclick="switchTab('defaults')">⚙️ Defaults</button>
   </div>
 
@@ -357,6 +358,10 @@
           <div class="grand-sum-label">Next Bill (Open)</div>
           <div class="grand-sum-val next-bill" id="gsNextBill">₹0</div>
         </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Cash / Wallet</div>
+          <div class="grand-sum-val" id="gsCash" style="color:#059669">₹0</div>
+        </div>
       </div>
       <hr class="grand-divider">
       <div class="people-breakdown" id="gsPeopleBreakdown"></div>
@@ -369,6 +374,57 @@
     </div>
 
     <div id="cardsList"></div>
+
+    <!-- Cash / Wallet section -->
+    <div id="cashSection" hidden style="margin-top:18px">
+      <div class="card-header" style="border-left-color:#059669;border-radius:var(--r-sm);background:var(--surface);padding:10px 14px;display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div class="card-name">💵 Cash / Wallet Payments</div>
+          <div class="card-meta" id="cashSectionMeta"></div>
+        </div>
+        <div class="card-total" id="cashSectionTotal">₹0</div>
+        <button class="btn btn-ghost" onclick="openCashTxnModal()" title="Add cash payment" style="font-size:16px;font-weight:600">+</button>
+      </div>
+      <div id="cashTxnsList"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ LB MANAGER TAB ═══════════════ -->
+  <div id="viewLb" hidden>
+
+    <!-- Summary strip -->
+    <div class="grand-summary" id="lbSummary" style="margin-bottom:14px">
+      <div class="grand-summary-top">
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">I Lent Out</div>
+          <div class="grand-sum-val" id="lbTotalLent" style="color:var(--blue)">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">I Borrowed</div>
+          <div class="grand-sum-val" id="lbTotalBorrowed" style="color:var(--warn)">₹0</div>
+        </div>
+        <div class="grand-sum-item">
+          <div class="grand-sum-label">Net (Lent − Borrowed)</div>
+          <div class="grand-sum-val" id="lbNet">₹0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter: All / Pending / Settled -->
+    <div class="filter-bar" id="lbFilterBar" style="margin-bottom:10px">
+      <span class="filter-label">Show:</span>
+      <button class="filter-pill active" id="lbPillAll"     onclick="setLbFilter('all')">All</button>
+      <button class="filter-pill"        id="lbPillPending" onclick="setLbFilter('pending')">⏳ Pending</button>
+      <button class="filter-pill"        id="lbPillSettled" onclick="setLbFilter('settled')">✅ Settled</button>
+    </div>
+
+    <!-- Add button row -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn btn-primary" style="flex:1" onclick="openLbModal('lent')">+ I Lent</button>
+      <button class="btn btn-outline" style="flex:1" onclick="openLbModal('borrowed')">+ I Borrowed</button>
+    </div>
+
+    <div id="lbList"></div>
   </div>
 
   <!-- ═══════════════ DEFAULTS TAB ═══════════════ -->
@@ -408,6 +464,18 @@
     <div class="add-person-row" style="margin-top:8px">
       <input class="form-input" id="defNewPerson" placeholder="e.g. Tannu, Dad, Wife">
       <button class="btn btn-primary" onclick="addPersonFromDefs()">Add</button>
+    </div>
+
+    <!-- Section 4: Cash / Wallet Sources -->
+    <hr class="def-divider">
+    <div class="def-header">
+      <div class="def-title">Cash / Wallet Sources</div>
+    </div>
+    <div class="def-note">Sources like Pluxee, Slice, Cash — appear in the "Source" dropdown on cash payments.</div>
+    <div class="people-list" id="defCashSourceList"></div>
+    <div class="add-person-row" style="margin-top:8px">
+      <input class="form-input" id="defNewCashSource" placeholder="e.g. Pluxee, Slice, Cash">
+      <button class="btn btn-primary" onclick="addCashSourceFromDefs()">Add</button>
     </div>
 
   </div>
@@ -587,6 +655,113 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: LB Entry ═══ -->
+<div class="modal-backdrop" id="lbModal" hidden onclick="if(event.target===this)closeLbModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="lbModalTitle">Add Entry</div>
+    <input type="hidden" id="lbEntryId">
+    <!-- Type toggle -->
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="btn" id="lbTypeLent"     onclick="setLbType('lent')"     style="flex:1;font-weight:600">💸 I Lent</button>
+      <button class="btn" id="lbTypeBorrowed" onclick="setLbType('borrowed')" style="flex:1;font-weight:600">🤲 I Borrowed</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="lbAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="lbPersonLabel">To (Person)</label>
+        <input class="form-input" id="lbPerson" placeholder="Name" list="lbPersonList">
+        <datalist id="lbPersonList"></datalist>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Reason / Note</label>
+      <input class="form-input" id="lbReason" placeholder="e.g. Travel, Emergency, Rent">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="lbDate" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Due / Expected By</label>
+        <input class="form-input" id="lbDueDate" type="date" placeholder="Optional">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeLbModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLbEntry()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Repayment ═══ -->
+<div class="modal-backdrop" id="repaymentModal" hidden onclick="if(event.target===this)closeRepaymentModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-title" id="repaymentModalTitle">Add Repayment</div>
+    <input type="hidden" id="repEntryId">
+    <div style="background:var(--bg-muted);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:14px;font-size:13px">
+      <div id="repSummary" style="color:var(--fg-2)"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount Received / Paid (₹)</label>
+        <input class="form-input" id="repAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="repDate" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Note (optional)</label>
+      <input class="form-input" id="repNote" placeholder="e.g. UPI, Cash, Partial">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeRepaymentModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveRepayment()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Cash/Wallet Transaction ═══ -->
+<div class="modal-backdrop" id="cashTxnModal" hidden onclick="if(event.target===this)closeCashTxnModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title" id="cashTxnModalTitle">Add Cash Payment</div>
+    <input type="hidden" id="cashTxnId">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Amount (₹)</label>
+        <input class="form-input" id="ctAmount" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Source</label>
+        <select class="form-input" id="ctSource"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Spent For</label>
+      <input class="form-input" id="ctSpentFor" placeholder="e.g. Lunch, Fuel">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Spent By</label>
+        <select class="form-input" id="ctSpentBy"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input class="form-input" id="ctDate" type="date">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeCashTxnModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCashTxn()">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────────────────────
 // State
@@ -596,7 +771,10 @@ let state = {
   defaults: [],    // [{id,name,amount,category,dueDate}]
   cards: [],       // [{id,name,billDate,dueDate,color,defaults:[]}]
   cardTxns: {},    // { cardId: { 'YYYY-MM': [{id,amount,spentFor,spentBy,spentOn,date}] } }
-  people: []       // string[]
+  people: [],      // string[]
+  cashTxns: {},    // { 'YYYY-MM': [{id,amount,spentFor,spentBy,source,date}] }
+  cashSources: [], // string[] e.g. ['Pluxee', 'Slice']
+  lbEntries: []    // [{id,type:'lent'|'borrowed',person,amount,reason,date,dueDate,settled}]
 };
 let curYear, curMonth;
 let expEditId = null, expEditCtx = null;
@@ -625,9 +803,13 @@ function load() {
     if (r) {
       state = JSON.parse(r);
       // Ensure new CC fields exist for older saves
-      if (!state.cards)    state.cards    = [];
-      if (!state.cardTxns) state.cardTxns = {};
-      if (!state.people)   state.people   = [];
+      if (!state.cards)        state.cards        = [];
+      if (!state.cardTxns)     state.cardTxns     = {};
+      if (!state.people)       state.people       = [];
+      if (!state.billGenerated)state.billGenerated= {};
+      if (!state.cashTxns)     state.cashTxns     = {};
+      if (!state.cashSources)  state.cashSources  = [];
+      if (!state.lbEntries)    state.lbEntries    = [];
     }
   } catch(e) {}
 }
@@ -662,12 +844,13 @@ function init() {
 // Tabs
 // ─────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  ['Month','Cards','Defaults'].forEach(t => {
+  ['Month','Cards','Lb','Defaults'].forEach(t => {
     document.getElementById('tab'+t).classList.toggle('active', t.toLowerCase()===tab);
     document.getElementById('view'+t).hidden = t.toLowerCase()!==tab;
   });
   if (tab==='cards')    renderCards();
   if (tab==='defaults') renderDefaults();
+  if (tab==='lb')       renderLb();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -775,12 +958,36 @@ function renderCards() {
   const k       = key(curYear, curMonth);
   const hasCards = state.cards.length > 0;
   document.getElementById('ccNoCards').hidden  = hasCards;
-  document.getElementById('grandSummary').hidden = !hasCards;
+  // grandSummary shown when there are cards OR cash txns
+  const hasCashThisMonth = (state.cashTxns[k]||[]).length > 0;
+  document.getElementById('grandSummary').hidden = !hasCards && !hasCashThisMonth;
+
+  // Cash txns for this month (computed before early-exit so cash section always renders)
+  const allCashTxns = state.cashTxns[k] || [];
+  const cashTxns    = ccFilter ? allCashTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allCashTxns;
+  const hasCashTxns = allCashTxns.length > 0;
+  renderCashSection(cashTxns, k);
 
   if (!hasCards) {
     document.getElementById('cardsList').innerHTML='';
     document.getElementById('ccCreateBanner').hidden=true;
     document.getElementById('ccFilterBar').hidden=true;
+    document.getElementById('shareBtn').hidden = !hasCashTxns;
+    if (hasCashTxns) {
+      const ct = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+      document.getElementById('gsTotal').textContent = fmt(ct);
+      document.getElementById('gsThisBill').textContent = '₹0';
+      document.getElementById('gsNextBill').textContent = '₹0';
+      document.getElementById('gsCash').textContent = fmt(ct);
+      document.getElementById('gsCash').parentElement.hidden = false;
+      const byP = {};
+      cashTxns.forEach(t => { const p=t.spentBy||'Unknown'; byP[p]=(byP[p]||0)+Number(t.amount||0) });
+      let bHtml = '';
+      if (Object.keys(byP).length) {
+        bHtml = `<div class="gs-sub-label" style="color:#059669">Cash / Wallet — by person</div>` + buildPeopleRows(byP, ct);
+      }
+      document.getElementById('gsPeopleBreakdown').innerHTML = bHtml || '<div style="font-size:13px;color:var(--fg-3)">No transactions this month</div>';
+    }
     return;
   }
 
@@ -789,12 +996,13 @@ function renderCards() {
   const hasAnyDefaults = state.cards.some(c => c.defaults && c.defaults.length > 0);
   document.getElementById('ccCreateBanner').hidden = hasAnyTxns || !hasAnyDefaults;
 
-  // Show share button when there are transactions
-  document.getElementById('shareBtn').hidden = !hasAnyTxns;
+  // Show share button when there are any transactions (cards or cash)
+  document.getElementById('shareBtn').hidden = !hasAnyTxns && !hasCashTxns;
 
-  // Build person filter pills from people who have txns this month
+  // Build person filter pills from people who have txns this month (cards + cash)
   const peopleThisMonth = new Set();
   state.cards.forEach(c => ((state.cardTxns[c.id]||{})[k]||[]).forEach(t => peopleThisMonth.add(t.spentBy||'Unknown')));
+  allCashTxns.forEach(t => peopleThisMonth.add(t.spentBy||'Unknown'));
   const filterBar = document.getElementById('ccFilterBar');
   if (peopleThisMonth.size > 0) {
     const pills = ['All', ...Array.from(peopleThisMonth)].map(p => {
@@ -807,9 +1015,14 @@ function renderCards() {
     filterBar.hidden = true;
   }
 
-  // Compute grand totals using flag-based bill split
+  // Compute grand totals using flag-based bill split + cash
   let grandTotal=0, grandThis=0, grandNext=0;
-  const byPersonThis = {}, byPersonNext = {};
+  const byPersonThis = {}, byPersonNext = {}, byPersonCash = {};
+
+  // Cash totals
+  const cashTotal = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+  cashTxns.forEach(t => { const p=t.spentBy||'Unknown'; byPersonCash[p]=(byPersonCash[p]||0)+Number(t.amount||0) });
+  grandTotal += cashTotal;
 
   const allCardData = state.cards.map(card => {
     const allTxns    = (state.cardTxns[card.id]||{})[k] || [];
@@ -831,14 +1044,17 @@ function renderCards() {
   document.getElementById('gsTotal').textContent    = fmt(grandTotal);
   document.getElementById('gsThisBill').textContent = fmt(grandThis);
   document.getElementById('gsNextBill').textContent = fmt(grandNext);
+  document.getElementById('gsCash').textContent     = fmt(cashTotal);
+  document.getElementById('gsCash').parentElement.hidden = cashTotal === 0;
 
-  // Combined by person (This + Next)
+  // Combined by person (This + Next + Cash)
   const byPersonAll = {};
-  [...Object.entries(byPersonThis), ...Object.entries(byPersonNext)].forEach(([p, amt]) => {
+  [...Object.entries(byPersonThis), ...Object.entries(byPersonNext), ...Object.entries(byPersonCash)].forEach(([p, amt]) => {
     byPersonAll[p] = (byPersonAll[p]||0) + amt;
   });
   const hasThis = Object.keys(byPersonThis).length > 0;
   const hasNext = Object.keys(byPersonNext).length > 0;
+  const hasCash = Object.keys(byPersonCash).length > 0;
   const hasAny  = Object.keys(byPersonAll).length > 0;
   let breakdownHtml = '';
   if (hasThis) {
@@ -849,8 +1065,12 @@ function renderCards() {
     breakdownHtml += `<div class="gs-sub-label" style="color:var(--warn);margin-top:12px">Next Bill — by person</div>`;
     breakdownHtml += buildPeopleRows(byPersonNext, grandNext);
   }
-  if (hasThis && hasNext) {
-    breakdownHtml += `<div class="gs-sub-label" style="color:var(--fg-2);margin-top:12px">Total (This + Next) — by person</div>`;
+  if (hasCash) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:#059669;margin-top:12px">Cash / Wallet — by person</div>`;
+    breakdownHtml += buildPeopleRows(byPersonCash, cashTotal);
+  }
+  if (hasThis && hasNext || hasCash) {
+    breakdownHtml += `<div class="gs-sub-label" style="color:var(--fg-2);margin-top:12px">Total (All) — by person</div>`;
     breakdownHtml += buildPeopleRows(byPersonAll, grandTotal);
   }
   if (!hasAny) breakdownHtml = '<div style="font-size:13px;color:var(--fg-3)">No transactions this month</div>';
@@ -1036,6 +1256,9 @@ function renderDefaults() {
 
   // People list
   renderDefPeople();
+
+  // Cash sources list
+  renderDefCashSources();
 }
 
 function renderCardManageList() {
@@ -1082,6 +1305,132 @@ function addPersonFromDefs() {
   if (!state.people.includes(n)) { state.people.push(n); save() }
   document.getElementById('defNewPerson').value = '';
   renderDefPeople(); toast(`${n} added`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cash / Wallet Sources (Defaults)
+// ─────────────────────────────────────────────────────────────
+function renderDefCashSources() {
+  const el = document.getElementById('defCashSourceList');
+  if (!el) return;
+  el.innerHTML = state.cashSources.length
+    ? state.cashSources.map(s => `
+        <div class="people-item">
+          <span class="people-item-name">${esc(s)}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteCashSource('${esc(s)}')">🗑</button>
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--fg-3);padding:6px">No sources added yet. Add Pluxee, Slice, Cash etc.</div>';
+}
+
+function addCashSourceFromDefs() {
+  const n = document.getElementById('defNewCashSource').value.trim();
+  if (!n) return;
+  if (!state.cashSources.includes(n)) { state.cashSources.push(n); save() }
+  document.getElementById('defNewCashSource').value = '';
+  renderDefCashSources(); toast(`${n} added`);
+}
+
+function deleteCashSource(name) {
+  state.cashSources = state.cashSources.filter(s=>s!==name);
+  save(); renderDefCashSources(); toast(`${name} removed`);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Cash / Wallet Transactions
+// ─────────────────────────────────────────────────────────────
+function renderCashSection(cashTxns, k) {
+  const el = document.getElementById('cashSection');
+  if (!cashTxns.length && !state.cashSources.length && !state.cashTxns[k]?.length) {
+    el.hidden = true; return;
+  }
+  el.hidden = false;
+  const total = cashTxns.reduce((s,t)=>s+Number(t.amount||0),0);
+  document.getElementById('cashSectionTotal').textContent = fmt(total);
+  // Group by source
+  const groups = {};
+  cashTxns.forEach(t => { const s=t.source||'Cash'; (groups[s]=groups[s]||[]).push(t) });
+  let html = '';
+  if (Object.keys(groups).length) {
+    html = Object.entries(groups).map(([src, ts]) => {
+      const sTotal = ts.reduce((s,t)=>s+Number(t.amount||0),0);
+      const rows = ts.map(t => `
+        <div class="txn-row">
+          <div class="txn-amount">${fmt(t.amount)}</div>
+          <div class="txn-details">
+            <div class="txn-for">${esc(t.spentFor||'—')}</div>
+            <div class="txn-on" style="color:var(--fg-3)">${esc(t.spentBy||'')}${t.spentBy&&t.spentOn?' · ':''} ${esc(t.spentOn||'')}</div>
+          </div>
+          <div class="txn-date">${fmtDate(t.date)}</div>
+          <div class="txn-actions">
+            <button class="btn btn-ghost" onclick="openCashTxnModal('${t.id}')">✏️</button>
+            <button class="btn btn-danger" onclick="delCashTxn('${t.id}')">🗑</button>
+          </div>
+        </div>`).join('');
+      return `<div class="person-group">
+        <div class="person-group-header">
+          <span class="person-group-name">💵 ${esc(src)}</span>
+          <span class="person-group-total">${fmt(sTotal)}</span>
+        </div>${rows}</div>`;
+    }).join('');
+  } else {
+    html = '<div class="empty-block">No payments yet — click + to add</div>';
+  }
+  // Show meta: sources used or hint
+  const sourcesUsed = [...new Set(cashTxns.map(t=>t.source||'Cash'))].join(', ');
+  document.getElementById('cashSectionMeta').textContent = cashTxns.length ? sourcesUsed : 'Cash · Wallet payments';
+  document.getElementById('cashTxnsList').innerHTML = html;
+}
+
+function openCashTxnModal(txnId) {
+  const k = key(curYear, curMonth);
+  const txns = state.cashTxns[k] || [];
+  const t = txnId ? txns.find(x=>x.id===txnId) : null;
+  document.getElementById('cashTxnModalTitle').textContent = t ? 'Edit Cash Payment' : 'Add Cash Payment';
+  document.getElementById('cashTxnId').value = txnId||'';
+  document.getElementById('ctAmount').value   = t?.amount||'';
+  document.getElementById('ctSpentFor').value = t?.spentFor||'';
+  document.getElementById('ctDate').value     = t?.date||today();
+  // Populate source dropdown
+  const srcSel = document.getElementById('ctSource');
+  const sources = state.cashSources.length ? state.cashSources : ['Cash'];
+  srcSel.innerHTML = sources.map(s=>`<option ${t?.source===s?'selected':''}>${esc(s)}</option>`).join('');
+  if (t?.source) srcSel.value = t.source;
+  // Populate person dropdown
+  const pSel = document.getElementById('ctSpentBy');
+  pSel.innerHTML = state.people.map(p=>`<option ${t?.spentBy===p?'selected':''}>${esc(p)}</option>`).join('');
+  if (t?.spentBy) pSel.value = t.spentBy;
+  document.getElementById('ctAmount').classList.remove('err');
+  document.getElementById('ctSpentFor').classList.remove('err');
+  document.getElementById('cashTxnModal').hidden = false;
+  setTimeout(()=>document.getElementById('ctAmount').focus(), 60);
+}
+
+function closeCashTxnModal() { document.getElementById('cashTxnModal').hidden=true }
+
+function saveCashTxn() {
+  const txnId   = document.getElementById('cashTxnId').value;
+  const amount  = parseFloat(document.getElementById('ctAmount').value)||0;
+  const spentFor= document.getElementById('ctSpentFor').value.trim();
+  const spentBy = document.getElementById('ctSpentBy').value;
+  const source  = document.getElementById('ctSource').value;
+  const date    = document.getElementById('ctDate').value||today();
+  if (!amount)  { document.getElementById('ctAmount').classList.add('err'); document.getElementById('ctAmount').focus(); return }
+  if (!spentFor){ document.getElementById('ctSpentFor').classList.add('err'); document.getElementById('ctSpentFor').focus(); return }
+  const k = key(curYear, curMonth);
+  if (!state.cashTxns[k]) state.cashTxns[k] = [];
+  if (txnId) {
+    const t = state.cashTxns[k].find(x=>x.id===txnId);
+    if (t) Object.assign(t, {amount, spentFor, spentBy, source, date});
+  } else {
+    state.cashTxns[k].push({id:uid(), amount, spentFor, spentBy, source, date});
+  }
+  save(); closeCashTxnModal(); renderCards(); toast(txnId?'Updated ✓':'Added ✓');
+}
+
+function delCashTxn(txnId) {
+  const k = key(curYear, curMonth);
+  state.cashTxns[k] = (state.cashTxns[k]||[]).filter(t=>t.id!==txnId);
+  save(); renderCards(); toast('Payment removed');
 }
 
 function createCardDefaultsForMonth() {
@@ -1360,11 +1709,262 @@ function askClearAll() {
 }
 
 function confirmClearAll() {
-  state = { months:{}, defaults:[], cards:[], cardTxns:{}, people:[], billGenerated:{} };
+  state = { months:{}, defaults:[], cards:[], cardTxns:{}, people:[], billGenerated:{}, cashTxns:{}, cashSources:[], lbEntries:[] };
   save();
   document.getElementById('clearConfirm').hidden = true;
   renderMonth(); renderCards(); renderDefaults();
   toast('All data cleared');
+}
+
+// ─────────────────────────────────────────────────────────────
+// LB MANAGER
+// ─────────────────────────────────────────────────────────────
+let lbFilter = 'all'; // 'all' | 'pending' | 'settled'
+let lbModalType = 'lent';
+
+function setLbFilter(f) {
+  lbFilter = f;
+  ['all','pending','settled'].forEach(x => {
+    const id = 'lbPill' + x.charAt(0).toUpperCase() + x.slice(1);
+    document.getElementById(id).classList.toggle('active', x === f);
+  });
+  renderLb();
+}
+
+function lbRepaid(e) { return (e.repayments||[]).reduce((s,r)=>s+Number(r.amount||0),0) }
+function lbRemaining(e) { return Math.max(0, Number(e.amount||0) - lbRepaid(e)) }
+function lbIsSettled(e) { return e.settled || lbRemaining(e) === 0 }
+
+function renderLb() {
+  const entries = state.lbEntries || [];
+
+  // Summaries — use remaining balance for pending entries
+  const totalLent     = entries.filter(e=>e.type==='lent'    &&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+  const totalBorrowed = entries.filter(e=>e.type==='borrowed'&&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+  const net = totalLent - totalBorrowed;
+  document.getElementById('lbTotalLent').textContent     = fmt(totalLent);
+  document.getElementById('lbTotalBorrowed').textContent = fmt(totalBorrowed);
+  const netEl = document.getElementById('lbNet');
+  netEl.textContent = (net >= 0 ? '+' : '') + fmt(Math.abs(net));
+  netEl.style.color = net > 0 ? 'var(--blue)' : net < 0 ? 'var(--warn)' : 'var(--fg-2)';
+
+  // Filter
+  const visible = entries.filter(e => {
+    if (lbFilter === 'pending') return !lbIsSettled(e);
+    if (lbFilter === 'settled') return  lbIsSettled(e);
+    return true;
+  });
+
+  const el = document.getElementById('lbList');
+  if (!visible.length) {
+    el.innerHTML = `<div class="empty-block">${entries.length ? 'Nothing to show for this filter' : 'No entries yet — add using the buttons above'}</div>`;
+    return;
+  }
+
+  // Group by person
+  const byPerson = {};
+  visible.forEach(e => { const p=e.person||'Unknown'; (byPerson[p]=byPerson[p]||[]).push(e) });
+
+  el.innerHTML = Object.entries(byPerson).map(([person, es]) => {
+    const pLentRem = es.filter(e=>e.type==='lent'    &&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+    const pBorRem  = es.filter(e=>e.type==='borrowed'&&!lbIsSettled(e)).reduce((s,e)=>s+lbRemaining(e),0);
+    const pNet = pLentRem - pBorRem;
+    const netStr   = pNet === 0 ? 'All settled up'
+                   : pNet > 0  ? `They owe you ${fmt(pNet)}`
+                   : `You owe ${fmt(Math.abs(pNet))}`;
+    const netColor = pNet > 0 ? 'var(--blue)' : pNet < 0 ? 'var(--warn)' : 'var(--accent)';
+
+    const rows = es.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e => {
+      const isLent   = e.type === 'lent';
+      const repaid   = lbRepaid(e);
+      const remaining= lbRemaining(e);
+      const original = Number(e.amount||0);
+      const settled  = lbIsSettled(e);
+      const pct      = original > 0 ? Math.min(100, repaid/original*100) : 0;
+
+      const badge = isLent
+        ? `<span style="background:var(--blue-bg);color:var(--blue);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">💸 Lent</span>`
+        : `<span style="background:var(--warn-bg);color:var(--warn);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">🤲 Borrowed</span>`;
+      const settledBadge = settled
+        ? `<span style="background:var(--accent-bg);color:var(--accent);font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600">✅ Settled</span>` : '';
+      const duePart = e.dueDate ? `<span style="color:var(--fg-3)"> · Due ${fmtDate(e.dueDate)}</span>` : '';
+
+      // Progress bar (only when partially repaid)
+      const progressBar = repaid > 0 && !settled ? `
+        <div style="margin-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--fg-3);margin-bottom:3px">
+            <span>Repaid ${fmt(repaid)} of ${fmt(original)}</span>
+            <span style="color:${remaining>0?'var(--warn)':'var(--accent)'};font-weight:600">Remaining: ${fmt(remaining)}</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;transition:width .3s"></div>
+          </div>
+        </div>` : '';
+
+      // Repayment history rows
+      const reps = (e.repayments||[]);
+      const repHistory = reps.length ? `
+        <div style="margin-top:6px;padding:8px;background:var(--bg-muted);border-radius:var(--r-sm)">
+          <div style="font-size:11px;color:var(--fg-3);font-weight:600;margin-bottom:5px">REPAYMENTS</div>
+          ${reps.map(r=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:12px;font-weight:600;color:var(--accent)">${fmt(r.amount)}</span>
+              <span style="font-size:12px;color:var(--fg-2);flex:1">${esc(r.note||'—')}</span>
+              <span style="font-size:11px;color:var(--fg-3)">${fmtDate(r.date)}</span>
+              <button class="btn btn-danger" style="padding:1px 6px;font-size:11px" onclick="delRepayment('${e.id}','${r.id}')">🗑</button>
+            </div>`).join('')}
+        </div>` : '';
+
+      return `
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border);${settled?'opacity:0.6':''}">
+          <div style="display:flex;align-items:flex-start;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+                ${badge}${settledBadge}
+                <span style="font-size:14px;font-weight:700;color:var(--fg)">${fmt(original)}</span>
+              </div>
+              <div style="font-size:13px;color:var(--fg-2)">${esc(e.reason||'—')}${duePart}</div>
+              <div style="font-size:12px;color:var(--fg-3);margin-top:2px">${fmtDate(e.date)}</div>
+              ${progressBar}
+              ${repHistory}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:flex-end">
+              ${!settled ? `<button class="btn btn-outline btn-sm" onclick="openRepaymentModal('${e.id}')" style="white-space:nowrap;font-size:12px">+ Repayment</button>` : ''}
+              <div style="display:flex;gap:4px">
+                ${!settled ? `<button class="btn btn-ghost" onclick="settleLb('${e.id}')" title="Mark fully settled" style="font-size:14px">✅</button>` : `<button class="btn btn-ghost" onclick="unsettleLb('${e.id}')" title="Undo settle" style="font-size:11px;color:var(--fg-3)">↩</button>`}
+                <button class="btn btn-ghost" onclick="openLbModal(null,'${e.id}')">✏️</button>
+                <button class="btn btn-danger" onclick="delLbEntry('${e.id}')">🗑</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `<div class="card-section" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600;font-size:14px">${esc(person)}</div>
+        <div style="font-size:12px;font-weight:600;color:${netColor}">${netStr}</div>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function openLbModal(type, entryId) {
+  const e = entryId ? (state.lbEntries||[]).find(x=>x.id===entryId) : null;
+  const t = e ? e.type : (type || 'lent');
+  document.getElementById('lbEntryId').value = entryId||'';
+  document.getElementById('lbAmount').value  = e?.amount||'';
+  document.getElementById('lbPerson').value  = e?.person||'';
+  document.getElementById('lbReason').value  = e?.reason||'';
+  document.getElementById('lbDate').value    = e?.date||today();
+  document.getElementById('lbDueDate').value = e?.dueDate||'';
+  // Populate datalist from all known people + lb persons
+  const allNames = new Set([...state.people, ...(state.lbEntries||[]).map(x=>x.person).filter(Boolean)]);
+  document.getElementById('lbPersonList').innerHTML = [...allNames].map(n=>`<option value="${esc(n)}">`).join('');
+  document.getElementById('lbAmount').classList.remove('err');
+  document.getElementById('lbPerson').classList.remove('err');
+  setLbType(t);
+  document.getElementById('lbModal').hidden = false;
+  setTimeout(()=>document.getElementById('lbAmount').focus(), 60);
+}
+
+function setLbType(t) {
+  lbModalType = t;
+  const lentBtn = document.getElementById('lbTypeLent');
+  const borBtn  = document.getElementById('lbTypeBorrowed');
+  lentBtn.className = 'btn ' + (t==='lent'     ? 'btn-primary' : 'btn-outline');
+  borBtn.className  = 'btn ' + (t==='borrowed' ? 'btn-primary' : 'btn-outline');
+  document.getElementById('lbPersonLabel').textContent = t==='lent' ? 'To (Person)' : 'From (Person)';
+  document.getElementById('lbModalTitle').textContent  = t==='lent' ? '💸 I Lent Money' : '🤲 I Borrowed Money';
+}
+
+function closeLbModal() { document.getElementById('lbModal').hidden=true }
+
+function saveLbEntry() {
+  const entryId = document.getElementById('lbEntryId').value;
+  const amount  = parseFloat(document.getElementById('lbAmount').value)||0;
+  const person  = document.getElementById('lbPerson').value.trim();
+  const reason  = document.getElementById('lbReason').value.trim();
+  const date    = document.getElementById('lbDate').value||today();
+  const dueDate = document.getElementById('lbDueDate').value||'';
+  if (!amount) { document.getElementById('lbAmount').classList.add('err'); document.getElementById('lbAmount').focus(); return }
+  if (!person) { document.getElementById('lbPerson').classList.add('err'); document.getElementById('lbPerson').focus(); return }
+  if (!state.lbEntries) state.lbEntries = [];
+  if (entryId) {
+    const e = state.lbEntries.find(x=>x.id===entryId);
+    if (e) Object.assign(e, {type:lbModalType, amount, person, reason, date, dueDate}); // repayments preserved
+  } else {
+    state.lbEntries.push({id:uid(), type:lbModalType, person, amount, reason, date, dueDate, settled:false, repayments:[]});
+  }
+  save(); closeLbModal(); renderLb(); toast(entryId?'Updated ✓':'Added ✓');
+}
+
+function settleLb(id) {
+  const e = (state.lbEntries||[]).find(x=>x.id===id);
+  if (e) { e.settled = true; save(); renderLb(); toast('Marked as settled ✅'); }
+}
+
+function unsettleLb(id) {
+  const e = (state.lbEntries||[]).find(x=>x.id===id);
+  if (e) { e.settled = false; save(); renderLb(); toast('Marked as pending'); }
+}
+
+function delLbEntry(id) {
+  state.lbEntries = (state.lbEntries||[]).filter(x=>x.id!==id);
+  save(); renderLb(); toast('Entry deleted');
+}
+
+function openRepaymentModal(entryId) {
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  const repaid    = lbRepaid(e);
+  const remaining = lbRemaining(e);
+  const isLent    = e.type === 'lent';
+  document.getElementById('repEntryId').value = entryId;
+  document.getElementById('repAmount').value  = '';
+  document.getElementById('repNote').value    = '';
+  document.getElementById('repDate').value    = today();
+  document.getElementById('repaymentModalTitle').textContent = isLent ? '💰 Record Money Received' : '💰 Record Money Paid Back';
+  document.getElementById('repSummary').innerHTML =
+    `<strong>${esc(e.person)}</strong> · ${esc(e.reason||'—')}<br>
+     Original: <strong>${fmt(e.amount)}</strong> &nbsp;|&nbsp;
+     Repaid so far: <strong style="color:var(--accent)">${fmt(repaid)}</strong> &nbsp;|&nbsp;
+     Remaining: <strong style="color:var(--warn)">${fmt(remaining)}</strong>`;
+  document.getElementById('repAmount').classList.remove('err');
+  document.getElementById('repaymentModal').hidden = false;
+  setTimeout(()=>document.getElementById('repAmount').focus(), 60);
+}
+
+function closeRepaymentModal() { document.getElementById('repaymentModal').hidden=true }
+
+function saveRepayment() {
+  const entryId = document.getElementById('repEntryId').value;
+  const amount  = parseFloat(document.getElementById('repAmount').value)||0;
+  const note    = document.getElementById('repNote').value.trim();
+  const date    = document.getElementById('repDate').value||today();
+  if (!amount) { document.getElementById('repAmount').classList.add('err'); document.getElementById('repAmount').focus(); return }
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  if (!e.repayments) e.repayments = [];
+  e.repayments.push({id:uid(), amount, note, date});
+  // Auto-settle if fully repaid
+  if (lbRemaining(e) === 0) {
+    e.settled = true;
+    toast('Fully repaid — marked as settled ✅');
+  } else {
+    toast(`Repayment of ${fmt(amount)} recorded · ${fmt(lbRemaining(e))} remaining`);
+  }
+  save(); closeRepaymentModal(); renderLb();
+}
+
+function delRepayment(entryId, repId) {
+  const e = (state.lbEntries||[]).find(x=>x.id===entryId);
+  if (!e) return;
+  e.repayments = (e.repayments||[]).filter(r=>r.id!==repId);
+  // Un-settle if amount comes back above zero
+  if (lbRemaining(e) > 0) e.settled = false;
+  save(); renderLb(); toast('Repayment removed');
 }
 
 // Share Modal
@@ -1382,12 +1982,12 @@ function openShareModal() {
 
 function generateShareText(k) {
   const lines = [];
-  const header = ccFilter ? `${ccFilter}'s Credit Card Expenses` : 'Credit Card Summary';
+  const header = ccFilter ? `${ccFilter}'s Expenses` : 'Expense Summary';
   lines.push(`📊 ${header}`);
   lines.push(`📅 ${MN[curMonth]} ${curYear}`);
   if (ccFilter) lines.push(`👤 ${ccFilter}`);
   lines.push('');
-  let grandThis = 0, grandNext = 0;
+  let grandThis = 0, grandNext = 0, grandCash = 0;
   state.cards.forEach(card => {
     const allTxns = (state.cardTxns[card.id]||{})[k] || [];
     const txns = ccFilter ? allTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allTxns;
@@ -1424,12 +2024,38 @@ function generateShareText(k) {
     }
     lines.push('');
   });
+  // Cash / Wallet section
+  const allCashTxns = state.cashTxns[k] || [];
+  const cashTxns = ccFilter ? allCashTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allCashTxns;
+  if (cashTxns.length) {
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('💵 Cash / Wallet Payments');
+    // Group by source
+    const groups = {};
+    cashTxns.forEach(t => { const s=t.source||'Cash'; (groups[s]=groups[s]||[]).push(t) });
+    Object.entries(groups).forEach(([src, ts]) => {
+      lines.push(`  [${src}]`);
+      ts.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        lines.push(`  ${amt} ${sf} ${by}`);
+      });
+      const srcAmt = ts.reduce((s,t)=>s+(+t.amount||0),0);
+      grandCash += srcAmt;
+      lines.push(`  ─ ${src} Total: ${fmt(srcAmt)}`);
+    });
+    lines.push('');
+  }
   lines.push('════════════════════════');
   if (grandNext > 0) {
-    lines.push(`This Bill : ${fmt(grandThis)}`);
-    lines.push(`Next Bill : ${fmt(grandNext)}`);
+    lines.push(`CC This Bill : ${fmt(grandThis)}`);
+    lines.push(`CC Next Bill : ${fmt(grandNext)}`);
+  } else if (grandThis > 0) {
+    lines.push(`CC Total     : ${fmt(grandThis)}`);
   }
-  lines.push(`Grand Total: ${fmt(grandThis + grandNext)}`);
+  if (grandCash > 0) lines.push(`Cash / Wallet: ${fmt(grandCash)}`);
+  lines.push(`Grand Total  : ${fmt(grandThis + grandNext + grandCash)}`);
   return lines.join('\n');
 }
 
