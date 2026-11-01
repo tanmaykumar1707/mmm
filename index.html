@@ -331,6 +331,7 @@
         <div class="month-label" id="ccMonthLabel"></div>
         <button class="month-nav" onclick="changeMonth(1); renderCards()">›</button>
       </div>
+      <button class="btn btn-outline btn-sm" id="shareBtn" onclick="openShareModal()" hidden>📤 Share</button>
     </div>
 
     <div class="create-banner" id="ccCreateBanner" hidden>
@@ -567,6 +568,25 @@
   </div>
 </div>
 
+<!-- ═══ MODAL: Share ═══ -->
+<div class="modal-backdrop" id="shareModal" hidden onclick="if(event.target===this)document.getElementById('shareModal').hidden=true">
+  <div class="modal" style="max-width:560px" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title" style="margin-bottom:0" id="shareModalTitle">Summary</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn btn-primary btn-sm" onclick="copyShareText()">📋 Copy</button>
+        <button class="btn btn-outline btn-sm" onclick="whatsappShare()">💬 WhatsApp</button>
+      </div>
+    </div>
+    <div class="def-note" style="margin-bottom:10px" id="shareModalSub"></div>
+    <textarea id="shareTextarea" readonly
+      style="width:100%;height:340px;resize:vertical;font-family:monospace;font-size:12px;line-height:1.6;padding:12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--fg);outline:none"></textarea>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('shareModal').hidden=true">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─────────────────────────────────────────────────────────────
 // State
@@ -768,6 +788,9 @@ function renderCards() {
   const hasAnyTxns = state.cards.some(c => ((state.cardTxns[c.id]||{})[k]||[]).length > 0);
   const hasAnyDefaults = state.cards.some(c => c.defaults && c.defaults.length > 0);
   document.getElementById('ccCreateBanner').hidden = hasAnyTxns || !hasAnyDefaults;
+
+  // Show share button when there are transactions
+  document.getElementById('shareBtn').hidden = !hasAnyTxns;
 
   // Build person filter pills from people who have txns this month
   const peopleThisMonth = new Set();
@@ -1342,6 +1365,86 @@ function confirmClearAll() {
   document.getElementById('clearConfirm').hidden = true;
   renderMonth(); renderCards(); renderDefaults();
   toast('All data cleared');
+}
+
+// Share Modal
+// ─────────────────────────────────────────────────────────────
+function openShareModal() {
+  const k = key(curYear, curMonth);
+  const text = generateShareText(k);
+  const title = ccFilter ? `${ccFilter}'s CC Summary` : 'Full CC Summary';
+  const sub = `${MN[curMonth]} ${curYear}${ccFilter ? ' · Filtered: ' + ccFilter : ' · All people'}`;
+  document.getElementById('shareModalTitle').textContent = title;
+  document.getElementById('shareModalSub').textContent = sub;
+  document.getElementById('shareTextarea').value = text;
+  document.getElementById('shareModal').hidden = false;
+}
+
+function generateShareText(k) {
+  const lines = [];
+  const header = ccFilter ? `${ccFilter}'s Credit Card Expenses` : 'Credit Card Summary';
+  lines.push(`📊 ${header}`);
+  lines.push(`📅 ${MN[curMonth]} ${curYear}`);
+  if (ccFilter) lines.push(`👤 ${ccFilter}`);
+  lines.push('');
+  let grandThis = 0, grandNext = 0;
+  state.cards.forEach(card => {
+    const allTxns = (state.cardTxns[card.id]||{})[k] || [];
+    const txns = ccFilter ? allTxns.filter(t => (t.spentBy||'Unknown') === ccFilter) : allTxns;
+    if (!txns.length) return;
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push(`💳 ${card.name}`);
+    const thisBill = txns.filter(t => !t.nextBill);
+    const nextBill = txns.filter(t =>  t.nextBill);
+    if (thisBill.length) {
+      lines.push('📋 This Bill');
+      thisBill.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        const on  = t.spentOn || '';
+        lines.push(`  ${amt} ${sf} ${by} ${on}`);
+      });
+      const thisAmt = thisBill.reduce((s,t)=>s+(+t.amount||0),0);
+      grandThis += thisAmt;
+      lines.push(`  ─ Total: ${fmt(thisAmt)}`);
+    }
+    if (nextBill.length) {
+      lines.push('📋 Next Bill');
+      nextBill.forEach(t => {
+        const amt = fmt(t.amount).padEnd(10);
+        const sf  = (t.spentFor||'').padEnd(14);
+        const by  = (t.spentBy||'').padEnd(10);
+        const on  = t.spentOn || '';
+        lines.push(`  ${amt} ${sf} ${by} ${on}`);
+      });
+      const nextAmt = nextBill.reduce((s,t)=>s+(+t.amount||0),0);
+      grandNext += nextAmt;
+      lines.push(`  ─ Total: ${fmt(nextAmt)}`);
+    }
+    lines.push('');
+  });
+  lines.push('════════════════════════');
+  if (grandNext > 0) {
+    lines.push(`This Bill : ${fmt(grandThis)}`);
+    lines.push(`Next Bill : ${fmt(grandNext)}`);
+  }
+  lines.push(`Grand Total: ${fmt(grandThis + grandNext)}`);
+  return lines.join('\n');
+}
+
+function copyShareText() {
+  const ta = document.getElementById('shareTextarea');
+  try {
+    navigator.clipboard.writeText(ta.value)
+      .then(() => toast('Copied to clipboard!'))
+      .catch(() => { ta.select(); toast('Select all and copy manually'); });
+  } catch(e) { ta.select(); toast('Select all and copy manually'); }
+}
+
+function whatsappShare() {
+  const text = document.getElementById('shareTextarea').value;
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 // Toast, Theme, Keyboard
