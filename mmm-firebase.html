@@ -2162,16 +2162,24 @@ document.addEventListener('keydown', ev => {
           ".write": "auth != null && auth.uid === $uid"
         }
       },
+      "profiles": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      },
       "shares": {
         "$uid": {
           ".read": "auth != null && auth.uid === $uid",
           ".write": "auth != null && auth.uid === $uid"
         }
       },
-      "profiles": {
-        "$uid": {
-          ".read": "auth != null",
-          ".write": "auth != null && auth.uid === $uid"
+      "receivedAccess": {
+        "$targetUid": {
+          ".read": "auth != null && auth.uid === $targetUid",
+          "$ownerUid": {
+            ".write": "auth != null && auth.uid === $ownerUid && (!newData.exists() || root.child('shares/' + $ownerUid + '/grantedTo/' + $targetUid).exists())"
+          }
         }
       }
     }
@@ -2371,50 +2379,67 @@ function closeShareAccessModal() {
 async function renderShareAccessList() {
   const list = document.getElementById('shareAccessList');
   list.innerHTML = '<div style="color:var(--fg-3);font-size:13px">Loading…</div>';
-  const snap = await fbDb.ref('shares/' + myUid + '/grantedTo').get();
-  if (!snap.exists() || !Object.keys(snap.val()||{}).length) {
-    list.innerHTML = '<div style="color:var(--fg-3);font-size:13px;padding:8px 0">No one has access yet.</div>';
-    return;
+  try {
+    const snap = await fbDb.ref('shares/' + myUid + '/grantedTo').get();
+    if (!snap.exists() || !Object.keys(snap.val()||{}).length) {
+      list.innerHTML = '<div style="color:var(--fg-3);font-size:13px;padding:8px 0">No one has access yet.</div>';
+      return;
+    }
+    const grantees = snap.val();
+    let html = '';
+    for (const [uid, info] of Object.entries(grantees)) {
+      html += `<div class="share-row">
+        <div class="share-email">${esc(info.email||uid)}</div>
+        <span class="share-badge">read-only</span>
+        <button class="btn btn-sm btn-danger" onclick="revokeAccess('${uid}')">Revoke</button>
+      </div>`;
+    }
+    list.innerHTML = html;
+  } catch (e) {
+    console.error('Could not load sharing list:', e);
+    list.innerHTML = `<div style="color:var(--danger);font-size:13px">Could not load: ${esc(e.code || e.message)}</div>`;
   }
-  const grantees = snap.val();
-  let html = '';
-  for (const [uid, info] of Object.entries(grantees)) {
-    html += `<div class="share-row">
-      <div class="share-email">${info.email||uid}</div>
-      <span class="share-badge">read-only</span>
-      <button class="btn btn-sm btn-danger" onclick="revokeAccess('${uid}')">Revoke</button>
-    </div>`;
-  }
-  list.innerHTML = html;
 }
 
 async function grantAccess() {
   const emailInput = document.getElementById('grantEmailInput');
   const email = (emailInput.value||'').trim().toLowerCase();
   if (!email) return;
-  // Look up uid by email from profiles
-  const profilesSnap = await fbDb.ref('profiles').get();
-  if (!profilesSnap.exists()) { toast('User not found'); return; }
-  let targetUid = null, targetInfo = null;
-  profilesSnap.forEach(child => {
-    if ((child.val().email||'').toLowerCase() === email) {
-      targetUid = child.key; targetInfo = child.val();
-    }
-  });
-  if (!targetUid) { toast('User not found — they must sign in to MMM first'); return; }
-  if (targetUid === myUid) { toast('Cannot grant access to yourself'); return; }
-  await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).set({ email: targetInfo.email, displayName: targetInfo.displayName||'' });
-  await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).set(true);
-  emailInput.value = '';
-  toast('Access granted to ' + email);
-  renderShareAccessList();
+  try {
+    // Look up uid by email from profiles
+    const profilesSnap = await fbDb.ref('profiles').get();
+    if (!profilesSnap.exists()) { toast('No MMM profiles found; the other user must sign in once first'); return; }
+    let targetUid = null, targetInfo = null;
+    profilesSnap.forEach(child => {
+      if ((child.val().email||'').toLowerCase() === email) {
+        targetUid = child.key; targetInfo = child.val();
+      }
+    });
+    if (!targetUid) { toast('User not found — they must sign in to MMM first'); return; }
+    if (targetUid === myUid) { toast('Cannot grant access to yourself'); return; }
+    // Write the grant first; receivedAccess rules require this grant to exist.
+    await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).set({ email: targetInfo.email, displayName: targetInfo.displayName||'' });
+    await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).set(true);
+    emailInput.value = '';
+    toast('Access granted to ' + email);
+    renderShareAccessList();
+  } catch (e) {
+    console.error('Could not grant access:', e);
+    toast('Grant failed (' + (e.code || 'unknown') + '): ' + e.message);
+  }
 }
 
 async function revokeAccess(targetUid) {
-  await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).remove();
-  await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).remove();
-  toast('Access revoked');
-  renderShareAccessList();
+  try {
+    // Remove the index while the grant still exists, then remove the grant.
+    await fbDb.ref('receivedAccess/' + targetUid + '/' + myUid).remove();
+    await fbDb.ref('shares/' + myUid + '/grantedTo/' + targetUid).remove();
+    toast('Access revoked');
+    renderShareAccessList();
+  } catch (e) {
+    console.error('Could not revoke access:', e);
+    toast('Revoke failed (' + (e.code || 'unknown') + '): ' + e.message);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
